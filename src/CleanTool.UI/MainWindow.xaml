@@ -6,6 +6,7 @@
         xmlns:vm="clr-namespace:CleanTool.UI.ViewModels"
         xmlns:zero="clr-namespace:ZeroUI.Wpf.Theme;assembly=ZeroUI.Wpf"
         xmlns:opt="clr-namespace:ZeroUI.Wpf.Rendering.Optimizer;assembly=ZeroUI.Wpf"
+        xmlns:feed="clr-namespace:ZeroUI.Wpf.Feedback;assembly=ZeroUI.Wpf"
         Title="CleanTool — ZeroUI System Optimizer" 
         Height="720" Width="1020" MinHeight="500" MinWidth="750"
         WindowStartupLocation="CenterScreen"
@@ -140,12 +141,8 @@
                     </RadioButton>
                 </StackPanel>
 
-                <!-- Right Quick Badge -->
-                <Border Grid.Column="2" Background="#181A28" BorderBrush="#2E344E" BorderThickness="1"
-                        CornerRadius="6" Padding="10,6" VerticalAlignment="Center">
-                    <TextBlock Text="Safe Mode Active" Foreground="{StaticResource SuccessAccentBrush}" 
-                               FontSize="11.5" FontWeight="SemiBold"/>
-                </Border>
+                <!-- Right Quick Badge with ZeroUI ZeroBadge -->
+                <feed:ZeroBadge Grid.Column="2" BadgeText="Safe Mode Active" Status="Online" VerticalAlignment="Center"/>
             </Grid>
         </Border>
 

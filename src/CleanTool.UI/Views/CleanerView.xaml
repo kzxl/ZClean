@@ -1,7 +1,9 @@
 <UserControl x:Class="CleanTool.UI.Views.CleanerView"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:converters="clr-namespace:CleanTool.UI.Converters">
+             xmlns:converters="clr-namespace:CleanTool.UI.Converters"
+             xmlns:edit="clr-namespace:ZeroUI.Wpf.Editors;assembly=ZeroUI.Wpf"
+             xmlns:feed="clr-namespace:ZeroUI.Wpf.Feedback;assembly=ZeroUI.Wpf">
     <UserControl.Resources>
         <converters:BytesToHumanConverter x:Key="BytesConverter"/>
         <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
@@ -26,10 +28,10 @@
                 </Grid.ColumnDefinitions>
 
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="Select All" Command="{Binding SelectAllCommand}" 
-                            Style="{StaticResource ModernButtonStyle}" Height="28" Padding="10,0" Margin="0,0,8,0"/>
-                    <Button Content="Deselect All" Command="{Binding DeselectAllCommand}" 
-                            Style="{StaticResource ModernButtonStyle}" Height="28" Padding="10,0"/>
+                    <edit:SimpleButton Content="Select All" Command="{Binding SelectAllCommand}" 
+                                       Variant="Secondary" Height="28" Padding="12,0" Margin="0,0,8,0"/>
+                    <edit:SimpleButton Content="Deselect All" Command="{Binding DeselectAllCommand}" 
+                                       Variant="Secondary" Height="28" Padding="12,0"/>
                 </StackPanel>
 
                 <!-- Reclaimable Metrics Badge -->
@@ -63,32 +65,26 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- Selection Checkbox -->
-                                    <CheckBox IsChecked="{Binding IsSelected}" 
-                                              Style="{StaticResource ModernCheckBoxStyle}"
-                                              VerticalAlignment="Center"/>
+                                    <!-- ZeroUI CheckEdit Control -->
+                                    <edit:CheckEdit IsChecked="{Binding IsSelected, Mode=TwoWay}" 
+                                                    BoxSize="18" Text=""
+                                                    VerticalAlignment="Center"/>
 
                                     <!-- Rule Details -->
-                                    <StackPanel Grid.Column="1" Margin="8,0,0,0">
+                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
                                         <StackPanel Orientation="Horizontal">
                                             <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextPrimaryBrush}" 
-                                                       FontWeight="SemiBold" FontSize="13"/>
+                                                       FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
 
-                                            <!-- Category Pill -->
-                                            <Border Background="#262A44" CornerRadius="4" Padding="6,1" Margin="8,0,0,0">
-                                                <TextBlock Text="{Binding Category}" Foreground="{StaticResource SecondaryAccentBrush}" 
-                                                           FontSize="10.5" FontWeight="Medium"/>
-                                            </Border>
+                                            <!-- Category Badge -->
+                                            <feed:ZeroBadge BadgeText="{Binding Category}" Status="Accent" Margin="10,0,0,0" VerticalAlignment="Center"/>
 
-                                            <!-- Risk Pill -->
-                                            <Border Background="#1C2E2A" CornerRadius="4" Padding="6,1" Margin="6,0,0,0">
-                                                <TextBlock Text="{Binding RiskLevel}" Foreground="{StaticResource SuccessAccentBrush}" 
-                                                           FontSize="10.5" FontWeight="Medium"/>
-                                            </Border>
+                                            <!-- Risk Badge -->
+                                            <feed:ZeroBadge BadgeText="{Binding RiskLevel}" Status="Online" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                         </StackPanel>
 
                                         <TextBlock Text="{Binding Description}" Foreground="{StaticResource TextSecondaryBrush}" 
-                                                   FontSize="11.5" Margin="0,3,0,0" TextWrapping="Wrap"/>
+                                                   FontSize="11.5" Margin="0,4,0,0" TextWrapping="Wrap"/>
                                     </StackPanel>
 
                                     <!-- Scanned Size / Status -->
@@ -121,28 +117,28 @@
                     <ColumnDefinition Width="Auto"/>
                 </Grid.ColumnDefinitions>
 
-                <!-- Status & Progress -->
+                <!-- Status & ZeroUI ProgressBarControl -->
                 <StackPanel Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0">
                     <TextBlock Text="{Binding StatusMessage}" Foreground="{StaticResource TextSecondaryBrush}" 
                                FontSize="12" TextTrimming="CharacterEllipsis"/>
-                    <ProgressBar Margin="0,6,0,0" Value="{Binding ProgressValue}" Maximum="100"
-                                 Style="{StaticResource ModernProgressBarStyle}"/>
+                    <edit:ProgressBarControl Margin="0,6,0,0" Value="{Binding ProgressValue}" Maximum="100" Height="14" ShowPercentage="True"/>
                 </StackPanel>
 
-                <!-- Buttons -->
+                <!-- ZeroUI SimpleButtons -->
                 <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                    <Button Content="🔍 Scan System" Command="{Binding ScanCommand}" 
-                            Style="{StaticResource AccentButtonStyle}" Height="34" Padding="16,0" Margin="0,0,8,0"/>
-                    <Button Content="🛡️ Simulate Clean" Command="{Binding SimulateCleanCommand}" 
-                            Style="{StaticResource ModernButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0"/>
-                    <Button Content="🧹 Clean Now" Command="{Binding LiveCleanCommand}" 
-                            Style="{StaticResource ModernButtonStyle}" Height="34" Padding="14,0"/>
+                    <edit:SimpleButton Content="🔍 Scan System" Command="{Binding ScanCommand}" 
+                                       Variant="Primary" Height="34" Padding="16,0" Margin="0,0,8,0"/>
+                    <edit:SimpleButton Content="🛡️ Simulate Clean" Command="{Binding SimulateCleanCommand}" 
+                                       Variant="Secondary" Height="34" Padding="14,0" Margin="0,0,8,0"/>
+                    <edit:SimpleButton Content="🧹 Clean Now" Command="{Binding LiveCleanCommand}" 
+                                       Variant="Danger" Height="34" Padding="14,0"/>
                 </StackPanel>
 
-                <!-- Safety Notice -->
-                <TextBlock Grid.Row="1" Grid.ColumnSpan="2" 
-                           Text="🔒 Safety Barrier Active: Live file deletion always requires explicit user confirmation before any physical items are purged." 
-                           Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,8,0,0"/>
+                <!-- ZeroUI InfoBar Safety Notice -->
+                <feed:ZeroInfoBar Grid.Row="1" Grid.ColumnSpan="2" Margin="0,10,0,0"
+                                  Title="Safety Barrier Active" 
+                                  Message="Live file deletion always requires explicit user confirmation before any physical items are purged." 
+                                  Severity="Info" IsClosable="False" Height="42"/>
             </Grid>
         </Border>
     </Grid>
