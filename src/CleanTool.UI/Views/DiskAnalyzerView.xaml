@@ -77,7 +77,7 @@
 
                                     <!-- Progress Bar -->
                                     <ProgressBar Grid.Row="1" Margin="0,10,0,8" Height="8"
-                                                 Value="{Binding UsedPercentage}" Maximum="100"
+                                                 Value="{Binding UsedPercentage, Mode=OneWay}" Maximum="100"
                                                  Style="{StaticResource ModernProgressBarStyle}"/>
 
                                     <!-- Storage Metrics -->

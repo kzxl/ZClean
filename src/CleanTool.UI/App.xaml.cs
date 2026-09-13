@@ -1,3 +1,4 @@
+using System.IO;
 using System.Windows;
 using ZeroUI.Core.Theme;
 using ZeroUI.Wpf.Theme;
@@ -6,21 +7,47 @@ namespace CleanTool.UI;
 
 public partial class App : Application
 {
+    public App()
+    {
+        DispatcherUnhandledException += (s, e) =>
+        {
+            MessageBox.Show($"Application error: {e.Exception.Message}", "CleanTool Error", MessageBoxButton.OK, MessageBoxImage.Error);
+            e.Handled = true;
+        };
+    }
+
     protected override void OnStartup(StartupEventArgs e)
     {
-        // 1. Initialize ZeroUI Standard Theme Engine & Skin Manager
-        ZeroSkinManager.ResetToDefaults();
-        ZeroThemeEngine.Initialize(this, "obsidian_dark");
-        ZeroWpfStyles.ApplyStyles(this);
-
-        // 2. Map and synchronize ZeroUI theme tokens to application resources
-        SyncZeroUiTokens();
-        ZeroWpfTheme.ThemeChanged += () =>
+        try
         {
-            Dispatcher.BeginInvoke(new Action(SyncZeroUiTokens));
-        };
+            // 1. Initialize ZeroUI Standard Theme Engine & Skin Manager
+            ZeroSkinManager.ResetToDefaults();
+            ZeroThemeEngine.Initialize(this, "obsidian_dark");
+            ZeroWpfStyles.ApplyStyles(this);
+
+            // 2. Map and synchronize ZeroUI theme tokens to application resources
+            SyncZeroUiTokens();
+            ZeroWpfTheme.ThemeChanged += () =>
+            {
+                Dispatcher.BeginInvoke(new Action(SyncZeroUiTokens));
+            };
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Failed to initialize ZeroUI theme: {ex.Message}", "CleanTool Warning", MessageBoxButton.OK, MessageBoxImage.Warning);
+        }
 
         base.OnStartup(e);
+
+        var window = new MainWindow();
+        MainWindow = window;
+        window.Show();
+        if (window.WindowState == WindowState.Minimized)
+        {
+            window.WindowState = WindowState.Normal;
+        }
+        window.Activate();
+        window.Focus();
     }
 
     private void SyncZeroUiTokens()

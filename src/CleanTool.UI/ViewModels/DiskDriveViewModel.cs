@@ -17,6 +17,6 @@ public class DiskDriveViewModel : ViewModelBase
     public long TotalBytes => Info.TotalBytes;
     public long FreeBytes => Info.FreeBytes;
     public long UsedBytes => Info.UsedBytes;
-    public double UsedPercentage => Info.UsedPercentage;
-    public double FreePercentage => Info.FreePercentage;
+    public double UsedPercentage { get => Info.UsedPercentage; set { } }
+    public double FreePercentage { get => Info.FreePercentage; set { } }
 }
