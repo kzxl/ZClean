@@ -1,0 +1,113 @@
+<UserControl x:Class="CleanTool.UI.Views.DiskAnalyzerView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:CleanTool.UI.Converters">
+    <UserControl.Resources>
+        <converters:BytesToHumanConverter x:Key="BytesConverter"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <Border Grid.Row="0" Background="{StaticResource BgCardBrush}"
+                BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1"
+                CornerRadius="8" Padding="14,10" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="Drive Space Overview" Foreground="{StaticResource TextPrimaryBrush}" 
+                               FontWeight="Bold" FontSize="14"/>
+                    <TextBlock Text="Monitors partition storage allocations and free headroom." 
+                               Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" Margin="0,2,0,0"/>
+                </StackPanel>
+
+                <Button Grid.Column="1" Content="🔄 Refresh Drives" Command="{Binding RefreshDrivesCommand}"
+                        Style="{StaticResource ModernButtonStyle}" Height="30" Padding="12,0"/>
+            </Grid>
+        </Border>
+
+        <!-- Drives List -->
+        <Border Grid.Row="1" Background="{StaticResource BgCardBrush}"
+                BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1"
+                CornerRadius="8" Padding="12">
+            <ScrollViewer VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Drives}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Margin="0,0,0,12" Padding="14" CornerRadius="8"
+                                    Background="{StaticResource BgInputBrush}"
+                                    BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+
+                                    <!-- Drive Header -->
+                                    <Grid Grid.Row="0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="💾" FontSize="16" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding DriveName}" Foreground="{StaticResource TextPrimaryBrush}" 
+                                                       FontWeight="Bold" FontSize="14" VerticalAlignment="Center"/>
+                                            <TextBlock Text=" (" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding VolumeLabel}" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Text=" - " Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding DriveFormat}" Foreground="{StaticResource TextSecondaryBrush}" VerticalAlignment="Center"/>
+                                            <TextBlock Text=")" Foreground="{StaticResource TextMutedBrush}" VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <TextBlock Grid.Column="1" 
+                                                   Text="{Binding UsedPercentage, StringFormat={}{0:F1}% Used}" 
+                                                   Foreground="{StaticResource PrimaryAccentBrush}" FontWeight="SemiBold" FontSize="13"/>
+                                    </Grid>
+
+                                    <!-- Progress Bar -->
+                                    <ProgressBar Grid.Row="1" Margin="0,10,0,8" Height="8"
+                                                 Value="{Binding UsedPercentage}" Maximum="100"
+                                                 Style="{StaticResource ModernProgressBarStyle}"/>
+
+                                    <!-- Storage Metrics -->
+                                    <Grid Grid.Row="2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBlock Text="Free: " Foreground="{StaticResource TextMutedBrush}" FontSize="12"/>
+                                            <TextBlock Text="{Binding FreeBytes, Converter={StaticResource BytesConverter}}" 
+                                                       Foreground="{StaticResource SuccessAccentBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                        </StackPanel>
+
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                            <TextBlock Text="Used: " Foreground="{StaticResource TextMutedBrush}" FontSize="12"/>
+                                            <TextBlock Text="{Binding UsedBytes, Converter={StaticResource BytesConverter}}" 
+                                                       Foreground="{StaticResource TextSecondaryBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                            <TextBlock Text=" / " Foreground="{StaticResource TextMutedBrush}" FontSize="12"/>
+                                            <TextBlock Text="{Binding TotalBytes, Converter={StaticResource BytesConverter}}" 
+                                                       Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Border>
+    </Grid>
+</UserControl>

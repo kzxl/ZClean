@@ -1,0 +1,10 @@
+<Project>
+  <PropertyGroup>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LangVersion>12.0</LangVersion>
+    <Deterministic>true</Deterministic>
+    <Company>Universe Software</Company>
+    <Copyright>Copyright (c) 2026</Copyright>
+  </PropertyGroup>
+</Project>

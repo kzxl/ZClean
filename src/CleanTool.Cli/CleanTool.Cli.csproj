@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <RootNamespace>CleanTool.Cli</RootNamespace>
+    <AssemblyName>cleantool</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\CleanTool.Core\CleanTool.Core.csproj" />
+    <ProjectReference Include="..\CleanTool.Rules\CleanTool.Rules.csproj" />
+  </ItemGroup>
+</Project>
