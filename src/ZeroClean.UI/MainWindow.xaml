@@ -109,26 +109,25 @@
                         <ColumnDefinition Width="Auto"/>
                     </Grid.ColumnDefinitions>
 
-                    <!-- Engine Status & Status Message -->
-                    <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                        <feed:ZeroBadge BadgeText="Ready" Status="Online" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                        <TextBlock Text="{Binding StatusMessage}" 
-                                   Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11" VerticalAlignment="Center"
-                                   TextTrimming="CharacterEllipsis" MaxWidth="450"/>
-                    </StackPanel>
+                    <!-- Engine Status Badge -->
+                    <feed:ZeroBadge Grid.Column="0" BadgeText="{Binding FooterBadgeText}" Status="{Binding FooterBadgeStatus}" 
+                                    Margin="0,0,10,0" VerticalAlignment="Center"/>
 
-                    <!-- Total Reclaimable Space Indicator -->
-                    <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <TextBlock Text="Total Reclaimable: " Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
-                        <TextBlock Text="{Binding TotalReclaimableBytes, Converter={StaticResource BytesConverter}}" 
-                                   Foreground="{DynamicResource PrimaryAccentBrush}" FontWeight="Bold" FontSize="11"/>
-                        <TextBlock Text="{Binding TotalReclaimableFiles, StringFormat=' ({0} files)'}" 
-                                   Foreground="{DynamicResource TextMutedBrush}" FontSize="11"/>
-                    </StackPanel>
+                    <!-- Full-Width Dynamic Status Message -->
+                    <TextBlock Grid.Column="1" Text="{Binding StatusMessage}" 
+                               Foreground="{DynamicResource TextSecondaryBrush}" FontSize="11.5" VerticalAlignment="Center"
+                               TextTrimming="CharacterEllipsis" Margin="0,0,12,0"/>
 
+                    <!-- Total Reclaimable Space & Engine Info Indicator -->
                     <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
-                        <TextBlock Text="⚡ Direct3D Accelerated • ZeroUI v1.5.0 • Dry-Run Safe" 
-                                   Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="Total Reclaimable: " Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding TotalReclaimableBytes, Converter={StaticResource BytesConverter}}" 
+                                   Foreground="{DynamicResource PrimaryAccentBrush}" FontWeight="Bold" FontSize="11.5" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding TotalReclaimableFiles, StringFormat=' ({0} files)'}" 
+                                   Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                        <Border Background="#1C2033" CornerRadius="4" Padding="6,2" VerticalAlignment="Center">
+                            <TextBlock Text="⚡ ZeroUI v1.5.0 Active" Foreground="{DynamicResource PrimaryAccentBrush}" FontSize="10" FontWeight="SemiBold"/>
+                        </Border>
                     </StackPanel>
                 </Grid>
             </Border>

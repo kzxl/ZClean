@@ -224,6 +224,8 @@ public class MainViewModel : ViewModelBase
         {
             if (SetProperty(ref _isBusy, value))
             {
+                OnPropertyChanged(nameof(FooterBadgeText));
+                OnPropertyChanged(nameof(FooterBadgeStatus));
                 ScanCommand.CanExecute(null);
                 SimulateCleanCommand.CanExecute(null);
                 LiveCleanCommand.CanExecute(null);
@@ -236,6 +238,9 @@ public class MainViewModel : ViewModelBase
             }
         }
     }
+
+    public string FooterBadgeText => IsBusy ? "Processing..." : "Ready";
+    public string FooterBadgeStatus => IsBusy ? "Accent" : "Online";
 
     public double ProgressValue
     {
