@@ -145,6 +145,31 @@ public class MainViewModel : ViewModelBase
     public RelayCommand<CleanRecommendation> FixRecommendationCommand { get; }
     public RelayCommand<LargeFileInfo> OpenLargeFileFolderCommand { get; }
     public RelayCommand<LargeFileInfo> DeleteLargeFileCommand { get; }
+    private readonly MemoryOptimizerService _memoryService = new();
+
+    private string _ramLoadPercentFormatted = "--";
+    public string RamLoadPercentFormatted
+    {
+        get => _ramLoadPercentFormatted;
+        set => SetProperty(ref _ramLoadPercentFormatted, value);
+    }
+
+    private string _ramDetailFormatted = "";
+    public string RamDetailFormatted
+    {
+        get => _ramDetailFormatted;
+        set => SetProperty(ref _ramDetailFormatted, value);
+    }
+
+    private bool _isRamOptimizing;
+    public bool IsRamOptimizing
+    {
+        get => _isRamOptimizing;
+        set => SetProperty(ref _isRamOptimizing, value);
+    }
+
+    public RelayCommand OptimizeRamCommand { get; }
+    public RelayCommand RefreshRamCommand { get; }
     public RelayCommand QuickOptimizeCommand { get; }
     public RelayCommand<object> NavigateTabCommand { get; }
 
@@ -201,6 +226,8 @@ public class MainViewModel : ViewModelBase
         OpenLargeFileFolderCommand = new RelayCommand<LargeFileInfo>(ExecuteOpenLargeFileFolder);
         DeleteLargeFileCommand = new RelayCommand<LargeFileInfo>(async file => await ExecuteDeleteLargeFileAsync(file));
         QuickOptimizeCommand = new RelayCommand(async () => await ExecuteQuickOptimizeAsync(), () => !IsBusy);
+        OptimizeRamCommand = new RelayCommand(async () => await ExecuteOptimizeRamAsync(), () => !IsRamOptimizing);
+        RefreshRamCommand = new RelayCommand(RefreshRamStatus);
         NavigateTabCommand = new RelayCommand<object>(param =>
         {
             if (param is int i) SelectedTabIndex = i;
@@ -209,6 +236,7 @@ public class MainViewModel : ViewModelBase
 
         LoadDrives();
         UpdateTotals();
+        RefreshRamStatus();
     }
 
     public int SelectedTabIndex
@@ -945,7 +973,7 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    private void ShowInfoBar(string message, string severity)
+    private void ShowInfoBar(string message, string severity = "Info")
     {
         InfoBarMessage = message;
         InfoBarSeverity = severity;
@@ -1167,6 +1195,43 @@ public class MainViewModel : ViewModelBase
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    public void RefreshRamStatus()
+    {
+        try
+        {
+            var info = _memoryService.GetSystemMemorySnapshot();
+            RamLoadPercentFormatted = $"{info.MemoryLoadPercent:0}%";
+            RamDetailFormatted = $"{FormatBytes((long)info.UsedPhysicalBytes)} / {FormatBytes((long)info.TotalPhysicalBytes)}";
+        }
+        catch
+        {
+            RamLoadPercentFormatted = "--";
+            RamDetailFormatted = "Unavailable";
+        }
+    }
+
+    private async Task ExecuteOptimizeRamAsync()
+    {
+        if (IsRamOptimizing) return;
+        IsRamOptimizing = true;
+        StatusMessage = "Purging Standby memory list & trimming working sets...";
+        try
+        {
+            var result = await _memoryService.OptimizeWorkingSetsAsync();
+            RefreshRamStatus();
+            StatusMessage = $"RAM Cleaned: {FormatBytes(result.ReclaimedBytes)} reclaimed across {result.ProcessesOptimized} processes.";
+            ShowInfoBar($"Freed {FormatBytes(result.ReclaimedBytes)} physical memory across {result.ProcessesOptimized} processes.", "Success");
+        }
+        catch (Exception ex)
+        {
+            ShowInfoBar($"RAM Optimization failed: {ex.Message}", "Error");
+        }
+        finally
+        {
+            IsRamOptimizing = false;
         }
     }
 

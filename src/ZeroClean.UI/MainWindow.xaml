@@ -69,6 +69,18 @@
 
                     <!-- Quick Optimize Action & Status Badges -->
                     <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <!-- Live RAM Working Set & Standby Purge Widget -->
+                        <Border Background="#141929" BorderBrush="#26314D" BorderThickness="1"
+                                CornerRadius="6" Padding="8,2" Margin="0,0,10,0" VerticalAlignment="Center"
+                                ToolTip="{Binding RamDetailFormatted}">
+                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                <TextBlock Text="💾 RAM " Foreground="{DynamicResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center"/>
+                                <TextBlock Text="{Binding RamLoadPercentFormatted}" Foreground="{DynamicResource PrimaryAccentBrush}" FontWeight="Bold" FontSize="11" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                <edit:SimpleButton Content="Purge" Command="{Binding OptimizeRamCommand}"
+                                                   Variant="Secondary" Height="22" Padding="8,0" FontSize="10"/>
+                            </StackPanel>
+                        </Border>
+
                         <!-- 1-Click Quick Optimize Button -->
                         <edit:SimpleButton Content="⚡ 1-Click Quick Clean" Command="{Binding QuickOptimizeCommand}"
                                            Variant="Primary" Height="30" Padding="14,0" Margin="0,0,10,0"/>

@@ -38,7 +38,7 @@ public static class Program
                 "analyze" => await HandleAnalyzeAsync(analyzer, cmdArgs),
                 "startup" => HandleStartup(),
                 "dupes" => await HandleDuplicatesAsync(cmdArgs),
-                "mem" => await HandleMemoryAsync(),
+                "mem" or "ram" => await HandleMemoryAsync(),
                 "dev" or "workspaces" => await HandleDevWorkspacesAsync(cmdArgs),
                 "advise" or "advisor" => await HandleAdviseAsync(engine, registry, cmdArgs),
                 "apps" or "installed" => HandleInstalledApps(cmdArgs),
@@ -825,16 +825,30 @@ public static class Program
 
     private static async Task<int> HandleMemoryAsync()
     {
-        Console.WriteLine("Optimizing system memory working sets...");
+        Console.WriteLine("Analyzing and optimizing system memory working sets...");
         var memService = new MemoryOptimizerService();
-        var result = await memService.OptimizeWorkingSetsAsync();
+        var snapshot = memService.GetSystemMemorySnapshot();
+        Console.WriteLine($"Current System RAM: {FormatBytes((long)snapshot.UsedPhysicalBytes)} / {FormatBytes((long)snapshot.TotalPhysicalBytes)} ({snapshot.MemoryLoadPercent}% in use)");
+
+        var result = await memService.OptimizeWorkingSetsAsync(purgeStandby: true);
 
         Console.ForegroundColor = ConsoleColor.Green;
         Console.WriteLine($"\nMemory Optimization Complete:");
-        Console.WriteLine($"  Processes Optimized: {result.ProcessesOptimized}");
-        Console.WriteLine($"  Memory Before:       {FormatBytes(result.InitialWorkingSetBytes)}");
-        Console.WriteLine($"  Memory After:        {FormatBytes(result.FinalWorkingSetBytes)}");
-        Console.WriteLine($"  RAM Reclaimed:       {FormatBytes(result.ReclaimedBytes)}\n");
+        Console.WriteLine($"  Processes Trimmed:   {result.ProcessesOptimized}");
+        Console.WriteLine($"  Standby Cache:       {(result.StandbyPurged ? "Purged successfully" : "Skipped (Run as Admin for standby cache purge)")}");
+        Console.WriteLine($"  Working Set Before:  {FormatBytes(result.InitialWorkingSetBytes)}");
+        Console.WriteLine($"  Working Set After:   {FormatBytes(result.FinalWorkingSetBytes)}");
+        Console.WriteLine($"  Working Set Trimmed: {FormatBytes(result.ReclaimedBytes)}");
+        if (result.InitialMemory != null && result.FinalMemory != null)
+        {
+            Console.WriteLine($"  System RAM In-Use:   {result.InitialMemory.MemoryLoadPercent}% -> {result.FinalMemory.MemoryLoadPercent}%");
+            long sysReclaimed = (long)result.FinalMemory.AvailablePhysicalBytes - (long)result.InitialMemory.AvailablePhysicalBytes;
+            if (sysReclaimed > 0)
+            {
+                Console.WriteLine($"  Free RAM Increased:  +{FormatBytes(sysReclaimed)}");
+            }
+        }
+        Console.WriteLine();
         Console.ResetColor();
         return 0;
     }
