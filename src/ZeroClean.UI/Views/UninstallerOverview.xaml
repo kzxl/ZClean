@@ -297,21 +297,8 @@
                     </ListBox>
 
                     <!-- Empty List Feedback -->
-                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center">
-                        <StackPanel.Style>
-                            <Style TargetType="StackPanel">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <MultiDataTrigger>
-                                        <MultiDataTrigger.Conditions>
-                                            <Condition Binding="{Binding FilteredApps.Count}" Value="0"/>
-                                            <Condition Binding="{Binding IsLoadingApps}" Value="False"/>
-                                        </MultiDataTrigger.Conditions>
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </MultiDataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </StackPanel.Style>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                Visibility="{Binding HasNoApps, Converter={StaticResource BoolToVisConverter}}">
                         <TextBlock Text="🔍" FontSize="36" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                         <TextBlock Text="No applications found" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="14" HorizontalAlignment="Center"/>
                         <TextBlock Text="Try clearing your search query or switching the filter pills above." Foreground="{StaticResource TextMutedBrush}" FontSize="11.5" Margin="0,4,0,0" HorizontalAlignment="Center"/>
@@ -331,7 +318,8 @@
                                            Foreground="{StaticResource TextSecondaryBrush}" FontSize="11.5" TextWrapping="Wrap"
                                            TextAlignment="Center" Margin="0,6,0,16"/>
                                 
-                                <ProgressBar Height="6" IsIndeterminate="True" Style="{StaticResource ModernProgressBarStyle}" Margin="0,0,0,12"/>
+                                <ProgressBar Height="6" IsIndeterminate="True" Margin="0,0,0,12"
+                                             Background="#262A44" Foreground="{StaticResource PrimaryAccentBrush}" BorderThickness="0"/>
                                 
                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                     <feed:ZeroBadge BadgeText="Lazy Loading" Status="Accent" Margin="0,0,6,0"/>
@@ -349,32 +337,24 @@
                     CornerRadius="8" Padding="14">
                 <Grid>
                     <!-- Empty State when no app is selected -->
-                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
-                        <StackPanel.Style>
-                            <Style TargetType="StackPanel">
-                                <Setter Property="Visibility" Value="Collapsed"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding SelectedApp}" Value="{x:Null}">
-                                        <Setter Property="Visibility" Value="Visible"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </StackPanel.Style>
+                    <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center"
+                                Visibility="{Binding SelectedApp, Converter={StaticResource NullToVisConverter}, ConverterParameter=invert}">
                         <TextBlock Text="👆" FontSize="36" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                         <TextBlock Text="Select an Application" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="14" HorizontalAlignment="Center"/>
                         <TextBlock Text="Click any application to inspect uninstall arguments, trace leftover registry keys, and simulate uninstallation."
                                    Foreground="{StaticResource TextMutedBrush}" FontSize="11.5" TextWrapping="Wrap" TextAlignment="Center" Margin="0,4,0,0" MaxWidth="280"/>
                     </StackPanel>
 
-                    <!-- Selected App Details & Tools -->
+                    <!-- Selected App Details & Tools (Clean 4-Row Grid) -->
                     <Grid Visibility="{Binding SelectedApp, Converter={StaticResource NullToVisConverter}}">
                         <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/> <!-- Selected App Header -->
-                            <RowDefinition Height="Auto"/> <!-- Quick Action Buttons -->
-                            <RowDefinition Height="*"/>    <!-- Traces & Orphan Folders Explorer -->
+                            <RowDefinition Height="Auto"/> <!-- Row 0: Selected App Header -->
+                            <RowDefinition Height="Auto"/> <!-- Row 1: Quick Action Buttons -->
+                            <RowDefinition Height="Auto"/> <!-- Row 2: Broken Entry Warning & Fix (Conditional) -->
+                            <RowDefinition Height="*"/>    <!-- Row 3: Traces & Orphan Folders Explorer -->
                         </Grid.RowDefinitions>
 
-                        <!-- Selected App Header Card -->
+                        <!-- Row 0: Selected App Header Card -->
                         <Border Grid.Row="0" Background="{StaticResource BgInputBrush}" CornerRadius="8" Padding="12" Margin="0,0,0,10"
                                 BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1">
                             <StackPanel>
@@ -404,8 +384,8 @@
                             </StackPanel>
                         </Border>
 
-                        <!-- Quick Action Buttons -->
-                        <Grid Grid.Row="1" Margin="0,0,0,12">
+                        <!-- Row 1: Quick Action Buttons -->
+                        <Grid Grid.Row="1" Margin="0,0,0,8">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="*"/>
@@ -420,8 +400,8 @@
                                                Variant="Danger" Height="28" Margin="4,0,0,0"/>
                         </Grid>
 
-                        <!-- Broken Entry Warning & Fix Button (Only when broken) -->
-                        <Border Grid.Row="1" Margin="0,34,0,0">
+                        <!-- Row 2: Broken Entry Warning & Fix Button (Only visible when broken) -->
+                        <Border Grid.Row="2" Margin="0,0,0,8">
                             <Border.Style>
                                 <Style TargetType="Border">
                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -433,11 +413,11 @@
                                 </Style>
                             </Border.Style>
                             <edit:SimpleButton Content="⚡ Purge Broken Registry Entry" Command="{Binding RemoveBrokenEntryCommand}"
-                                               Variant="Danger" Height="28" Margin="0,4,0,0"/>
+                                               Variant="Danger" Height="28"/>
                         </Border>
 
-                        <!-- Residual Traces & Leftovers Tabs -->
-                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto" Margin="0,34,0,0">
+                        <!-- Row 3: Residual Traces & Leftovers Tabs -->
+                        <ScrollViewer Grid.Row="3" VerticalScrollBarVisibility="Auto">
                             <StackPanel>
                                 <!-- Section 1: Residual Registry Keys -->
                                 <Border Background="#161827" CornerRadius="6" Padding="10" Margin="0,0,0,10"

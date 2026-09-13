@@ -288,9 +288,12 @@ public class MainViewModel : ViewModelBase
             {
                 LoadAppsCommand.CanExecute(null);
                 LoadLeftoversCommand.CanExecute(null);
+                OnPropertyChanged(nameof(HasNoApps));
             }
         }
     }
+
+    public bool HasNoApps => !IsLoadingApps && FilteredApps.Count == 0;
 
     public int TotalAppsCount
     {
@@ -687,6 +690,11 @@ public class MainViewModel : ViewModelBase
             TotalLeftoverSizeFormatted = FormatBytes(TotalLeftoverSize);
 
             ApplyAppFilter();
+            if (SelectedApp == null && FilteredApps.Count > 0)
+            {
+                SelectedApp = FilteredApps[0];
+            }
+            OnPropertyChanged(nameof(HasNoApps));
             StatusMessage = $"Software inventory loaded: {TotalAppsCount} applications ({TotalAppsSizeFormatted}), {TotalLeftoverCount} orphan leftovers ({TotalLeftoverSizeFormatted}).";
         }
         catch (Exception ex)
@@ -721,6 +729,15 @@ public class MainViewModel : ViewModelBase
 
         var results = q.OrderByDescending(a => a.EstimatedSizeBytes).ToList();
         FilteredApps.ReplaceRange(results);
+        if (SelectedApp != null && !results.Contains(SelectedApp))
+        {
+            SelectedApp = results.FirstOrDefault();
+        }
+        else if (SelectedApp == null && results.Count > 0)
+        {
+            SelectedApp = results[0];
+        }
+        OnPropertyChanged(nameof(HasNoApps));
     }
 
     public void ExecuteScanSelectedAppResiduals()

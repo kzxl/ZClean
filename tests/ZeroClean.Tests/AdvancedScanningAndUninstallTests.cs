@@ -178,4 +178,14 @@ public class AdvancedScanningAndUninstallTests
                 Directory.Delete(sandbox, true);
         }
     }
+
+    [Fact]
+    public void AppUninstallerService_GetInstalledApplications_LiveSystem_DoesNotCrash()
+    {
+        var service = new AppUninstallerService();
+        var apps = service.GetInstalledApplications();
+        Assert.NotNull(apps);
+        var leftovers = service.DetectLeftoverFolders(existingApps: apps);
+        Assert.NotNull(leftovers);
+    }
 }
