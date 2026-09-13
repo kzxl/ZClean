@@ -44,10 +44,12 @@
                             Style="{StaticResource ModernButtonStyle}" Height="28" Padding="12,0" Margin="0,0,8,0"/>
                     <Button Content="🔍 Residual Trace" Command="{Binding ScanAppResidualsCommand}"
                             Style="{StaticResource ModernButtonStyle}" Height="28" Padding="12,0" Margin="0,0,8,0"/>
-                    <Button Content="🛡️ Simulate Uninstall" Command="{Binding SimulateUninstallAppCommand}"
-                            Style="{StaticResource ModernButtonStyle}" Height="28" Padding="12,0" Margin="0,0,8,0"/>
+                    <Button Content="🛡️ Simulate" Command="{Binding SimulateUninstallAppCommand}"
+                            Style="{StaticResource ModernButtonStyle}" Height="28" Padding="10,0" Margin="0,0,8,0"/>
+                    <Button Content="🗑️ Uninstall" Command="{Binding LiveUninstallAppCommand}"
+                            Style="{StaticResource ModernButtonStyle}" Height="28" Padding="10,0" Margin="0,0,8,0"/>
                     <Button Content="📁 Orphan Leftovers" Command="{Binding LoadLeftoversCommand}"
-                            Style="{StaticResource ModernButtonStyle}" Height="28" Padding="12,0"/>
+                            Style="{StaticResource ModernButtonStyle}" Height="28" Padding="10,0"/>
                 </StackPanel>
 
                 <!-- Apps Count Badge -->

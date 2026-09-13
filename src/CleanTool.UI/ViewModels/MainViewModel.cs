@@ -48,6 +48,7 @@ public class MainViewModel : ViewModelBase
 
     public RelayCommand ScanCommand { get; }
     public RelayCommand SimulateCleanCommand { get; }
+    public RelayCommand LiveCleanCommand { get; }
     public RelayCommand SelectAllCommand { get; }
     public RelayCommand DeselectAllCommand { get; }
     public RelayCommand RefreshDrivesCommand { get; }
@@ -56,6 +57,7 @@ public class MainViewModel : ViewModelBase
     public RelayCommand LoadAppsCommand { get; }
     public RelayCommand ScanAppResidualsCommand { get; }
     public RelayCommand SimulateUninstallAppCommand { get; }
+    public RelayCommand LiveUninstallAppCommand { get; }
     public RelayCommand LoadLeftoversCommand { get; }
 
     public MainViewModel()
@@ -82,6 +84,7 @@ public class MainViewModel : ViewModelBase
 
         ScanCommand = new RelayCommand(async () => await ExecuteScanAsync(), () => !IsBusy);
         SimulateCleanCommand = new RelayCommand(async () => await ExecuteSimulateCleanAsync(), () => !IsBusy && TotalReclaimableBytes > 0);
+        LiveCleanCommand = new RelayCommand(async () => await ExecuteLiveCleanAsync(), () => !IsBusy && TotalReclaimableBytes > 0);
         SelectAllCommand = new RelayCommand(() => SetAllRulesSelection(true));
         DeselectAllCommand = new RelayCommand(() => SetAllRulesSelection(false));
         RefreshDrivesCommand = new RelayCommand(LoadDrives);
@@ -91,6 +94,7 @@ public class MainViewModel : ViewModelBase
         LoadAppsCommand = new RelayCommand(ExecuteLoadApps, () => !IsBusy);
         ScanAppResidualsCommand = new RelayCommand(ExecuteScanSelectedAppResiduals, () => !IsBusy && SelectedApp != null);
         SimulateUninstallAppCommand = new RelayCommand(async () => await ExecuteSimulateUninstallAsync(), () => !IsBusy && SelectedApp != null);
+        LiveUninstallAppCommand = new RelayCommand(async () => await ExecuteLiveUninstallAsync(), () => !IsBusy && SelectedApp != null);
         LoadLeftoversCommand = new RelayCommand(ExecuteLoadLeftovers, () => !IsBusy);
 
         LoadDrives();
@@ -112,10 +116,12 @@ public class MainViewModel : ViewModelBase
             {
                 ScanCommand.CanExecute(null);
                 SimulateCleanCommand.CanExecute(null);
+                LiveCleanCommand.CanExecute(null);
                 RunAdvisorCommand.CanExecute(null);
                 LoadAppsCommand.CanExecute(null);
                 ScanAppResidualsCommand.CanExecute(null);
                 SimulateUninstallAppCommand.CanExecute(null);
+                LiveUninstallAppCommand.CanExecute(null);
                 LoadLeftoversCommand.CanExecute(null);
             }
         }
@@ -184,6 +190,7 @@ public class MainViewModel : ViewModelBase
             {
                 ScanAppResidualsCommand.CanExecute(null);
                 SimulateUninstallAppCommand.CanExecute(null);
+                LiveUninstallAppCommand.CanExecute(null);
             }
         }
     }
@@ -351,6 +358,82 @@ public class MainViewModel : ViewModelBase
         }
     }
 
+    public async Task ExecuteLiveCleanAsync()
+    {
+        var selected = Rules.Where(r => r.IsSelected && r.ScannedCount > 0).ToList();
+        if (selected.Count == 0)
+        {
+            ShowInfoBar("Không có mục nào đang chờ dọn dẹp.", "Info");
+            return;
+        }
+
+        long totalBytes = selected.Sum(r => r.ScannedSize);
+        int totalFiles = selected.Sum(r => r.ScannedCount);
+
+        // Explicit user confirmation required
+        var result = MessageBox.Show(
+            $"⚠️ XÁC NHẬN XÓA DỮ LIỆU THẬT:\n\nBạn có chắc chắn muốn xóa vĩnh viễn {totalFiles:N0} files ({FormatBytes(totalBytes)}) thuộc {selected.Count} danh mục đã chọn?\n\nThao tác này sẽ xóa vật lý trên ổ đĩa và KHÔNG THỂ HOÀN TÁC!",
+            "Xác nhận Dọn dẹp Hệ thống",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+
+        if (result != MessageBoxResult.Yes)
+        {
+            ShowInfoBar("Đã hủy thao tác dọn dẹp theo yêu cầu người dùng. Không có file nào bị xóa.", "Info");
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = "Đang thực hiện dọn dẹp hệ thống...";
+        ProgressValue = 0;
+
+        try
+        {
+            var options = new CleanOptions
+            {
+                DryRun = false, // Physical deletion confirmed by user!
+                MinFileAge = TimeSpan.FromHours(24)
+            };
+
+            int index = 0;
+            long totalFreed = 0;
+            int totalDeleted = 0;
+
+            foreach (var ruleVm in selected)
+            {
+                ruleVm.IsBusy = true;
+                ruleVm.StatusText = "Đang xóa...";
+
+                var cleanResult = await ruleVm.Rule.CleanAsync(options);
+
+                ruleVm.ScannedSize = 0;
+                ruleVm.ScannedCount = 0;
+                ruleVm.StatusText = $"Đã xóa {cleanResult.DeletedCount:N0} ({FormatBytes(cleanResult.BytesFreed)})";
+                ruleVm.IsBusy = false;
+
+                totalFreed += cleanResult.BytesFreed;
+                totalDeleted += cleanResult.DeletedCount;
+
+                index++;
+                ProgressValue = ((double)index / selected.Count) * 100;
+            }
+
+            UpdateTotals();
+            StatusMessage = $"Dọn dẹp hoàn tất! Đã giải phóng {FormatBytes(totalFreed)} ({totalDeleted:N0} files).";
+            ShowInfoBar($"Đã dọn dẹp thành công {FormatBytes(totalFreed)} dung lượng đĩa.", "Success");
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Lỗi trong quá trình dọn dẹp.";
+            ShowInfoBar($"Dọn dẹp thất bại: {ex.Message}", "Error");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     public async Task ExecuteAdvisorAsync()
     {
         IsBusy = true;
@@ -474,6 +557,50 @@ public class MainViewModel : ViewModelBase
         catch (Exception ex)
         {
             ShowInfoBar($"Uninstall simulation error: {ex.Message}", "Error");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public async Task ExecuteLiveUninstallAsync()
+    {
+        if (SelectedApp == null) return;
+
+        // Explicit user confirmation required
+        var result = MessageBox.Show(
+            $"⚠️ XÁC NHẬN GỠ CÀI ĐẶT PHẦN MỀM:\n\nBạn có chắc chắn muốn thực hiện gỡ cài đặt phần mềm:\n'{SelectedApp.DisplayName}'\n(Phiên bản: {SelectedApp.DisplayVersion}, Nhà phát triển: {SelectedApp.Publisher})?\n\nLệnh gỡ cài đặt sẽ được thực thi trên máy tính của bạn.",
+            "Xác nhận gỡ phần mềm",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question,
+            MessageBoxResult.No);
+
+        if (result != MessageBoxResult.Yes)
+        {
+            ShowInfoBar("Đã hủy gỡ cài đặt theo yêu cầu của bạn.", "Info");
+            return;
+        }
+
+        IsBusy = true;
+        StatusMessage = $"Đang chạy bộ gỡ cài đặt cho {SelectedApp.DisplayName}...";
+
+        try
+        {
+            var execResult = await _uninstallerService.UninstallAppAsync(SelectedApp, quiet: false, dryRun: false);
+            if (execResult.Success)
+            {
+                ShowInfoBar($"Đã gỡ cài đặt '{SelectedApp.DisplayName}' thành công.", "Success");
+                ExecuteLoadApps();
+            }
+            else
+            {
+                ShowInfoBar($"Gỡ cài đặt không thành công (Mã thoát: {execResult.ExitCode}).", "Error");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowInfoBar($"Lỗi gỡ cài đặt: {ex.Message}", "Error");
         }
         finally
         {

@@ -190,8 +190,30 @@ public static class Program
         }
         else
         {
+            bool autoConfirm = args.Contains("--yes") || args.Contains("-y");
+            if (!autoConfirm)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("====================================================================");
+                Console.WriteLine("⚠️  XÁC NHẬN DỌN DẸP THẬT (LIVE CLEAN CONFIRMATION)");
+                Console.WriteLine($"Số rule thực hiện: {rulesToRun.Count}");
+                Console.WriteLine("Các file rác sẽ bị XÓA VĨNH VIỄN khỏi hệ thống. Thao tác này KHÔNG THỂ hoàn tác!");
+                Console.WriteLine("====================================================================");
+                Console.ResetColor();
+                Console.Write("Bạn có chắc chắn muốn tiến hành xóa file không? (nhập 'yes' hoặc 'y' để xác nhận): ");
+                var confirmation = Console.ReadLine()?.Trim().ToLowerInvariant();
+                if (confirmation is not ("yes" or "y"))
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("\n[ĐÃ HỦY] Người dùng đã từ chối xác nhận. Không có file nào bị xóa.\n");
+                    Console.ResetColor();
+                    return 0;
+                }
+                Console.WriteLine();
+            }
+
             Console.ForegroundColor = ConsoleColor.Red;
-            Console.WriteLine(">>> LIVE CLEAN MODE: Target files will be deleted permanently.\n");
+            Console.WriteLine(">>> LIVE CLEAN MODE: User confirmed deletion. Target files will be deleted permanently.\n");
             Console.ResetColor();
         }
 
@@ -479,6 +501,30 @@ public static class Program
         Console.WriteLine($"Publisher:          {app.Publisher}");
         Console.WriteLine($"Version:            {app.DisplayVersion}");
         Console.WriteLine($"Uninstaller:        {exe} {uninstArgs}\n");
+
+        if (isExecute)
+        {
+            bool autoConfirm = args.Contains("--yes") || args.Contains("-y");
+            if (!autoConfirm)
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.WriteLine("====================================================================");
+                Console.WriteLine($"⚠️  XÁC NHẬN GỠ CÀI ĐẶT: '{app.DisplayName}'");
+                Console.WriteLine("Hành động này sẽ thực thi trình gỡ cài đặt phần mềm trên hệ điều hành.");
+                Console.WriteLine("====================================================================");
+                Console.ResetColor();
+                Console.Write("Bạn có chắc chắn muốn gỡ ứng dụng này không? (nhập 'yes' hoặc 'y' để xác nhận): ");
+                var confirmation = Console.ReadLine()?.Trim().ToLowerInvariant();
+                if (confirmation is not ("yes" or "y"))
+                {
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.WriteLine("\n[ĐÃ HỦY] Người dùng đã từ chối xác nhận. Hủy lệnh gỡ cài đặt.\n");
+                    Console.ResetColor();
+                    return 0;
+                }
+                Console.WriteLine();
+            }
+        }
 
         var result = await uninstaller.UninstallAppAsync(app, quiet: isQuiet, dryRun: !isExecute);
 

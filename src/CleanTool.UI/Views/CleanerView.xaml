@@ -132,14 +132,16 @@
                 <!-- Buttons -->
                 <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
                     <Button Content="🔍 Scan System" Command="{Binding ScanCommand}" 
-                            Style="{StaticResource AccentButtonStyle}" Height="34" Padding="18,0" Margin="0,0,10,0"/>
+                            Style="{StaticResource AccentButtonStyle}" Height="34" Padding="16,0" Margin="0,0,8,0"/>
                     <Button Content="🛡️ Simulate Clean" Command="{Binding SimulateCleanCommand}" 
-                            Style="{StaticResource ModernButtonStyle}" Height="34" Padding="16,0"/>
+                            Style="{StaticResource ModernButtonStyle}" Height="34" Padding="14,0" Margin="0,0,8,0"/>
+                    <Button Content="🧹 Clean Now" Command="{Binding LiveCleanCommand}" 
+                            Style="{StaticResource ModernButtonStyle}" Height="34" Padding="14,0"/>
                 </StackPanel>
 
                 <!-- Safety Notice -->
                 <TextBlock Grid.Row="1" Grid.ColumnSpan="2" 
-                           Text="🔒 Safe Dry-Run Mode Active: Real-time simulation only. No physical files on this machine will be deleted." 
+                           Text="🔒 Bảo vệ an toàn: Thao tác xóa thực tế luôn yêu cầu người dùng xác nhận rõ ràng trước khi thực hiện." 
                            Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,8,0,0"/>
             </Grid>
         </Border>
