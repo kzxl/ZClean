@@ -11,4 +11,8 @@
     <ProjectReference Include="..\CleanTool.Core\CleanTool.Core.csproj" />
     <ProjectReference Include="..\CleanTool.Rules\CleanTool.Rules.csproj" />
   </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ZeroUI.Wpf" Version="1.5.0" />
+  </ItemGroup>
 </Project>

@@ -4,11 +4,13 @@
         xmlns:views="clr-namespace:CleanTool.UI.Views"
         xmlns:components="clr-namespace:CleanTool.UI.Views.Components"
         xmlns:vm="clr-namespace:CleanTool.UI.ViewModels"
-        Title="CleanTool — Modern System Optimizer" 
-        Height="720" Width="1000" MinHeight="500" MinWidth="750"
+        xmlns:zero="clr-namespace:ZeroUI.Wpf.Theme;assembly=ZeroUI.Wpf"
+        xmlns:opt="clr-namespace:ZeroUI.Wpf.Rendering.Optimizer;assembly=ZeroUI.Wpf"
+        Title="CleanTool — ZeroUI System Optimizer" 
+        Height="720" Width="1020" MinHeight="500" MinWidth="750"
         WindowStartupLocation="CenterScreen"
-        Background="{StaticResource BgDarkBrush}"
-        Foreground="{StaticResource TextPrimaryBrush}"
+        Background="{DynamicResource BgDarkBrush}"
+        Foreground="{DynamicResource TextPrimaryBrush}"
         FontFamily="{StaticResource AppFont}">
 
     <Window.DataContext>
@@ -28,7 +30,8 @@
 
         <!-- Top Header & Navigation -->
         <Border Grid.Row="0" Margin="0,0,0,16" Padding="0,0,0,12" 
-                BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="0,0,0,1">
+                BorderBrush="{DynamicResource BorderSubtleBrush}" BorderThickness="0,0,0,1"
+                opt:RenderOptimizer.Elevation="2">
             <Grid>
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
@@ -38,11 +41,18 @@
 
                 <!-- Branding -->
                 <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                    <TextBlock Text="🌌" FontSize="20" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                    <Border Width="32" Height="32" Background="{DynamicResource PrimaryAccentBrush}" CornerRadius="6" Margin="0,0,10,0">
+                        <TextBlock Text="⚡" FontSize="18" HorizontalAlignment="Center" VerticalAlignment="Center" Foreground="#FFFFFF"/>
+                    </Border>
                     <StackPanel>
-                        <TextBlock Text="CleanTool" Foreground="{StaticResource TextPrimaryBrush}" 
-                                   FontWeight="Bold" FontSize="18"/>
-                        <TextBlock Text="Universe System Optimizer" Foreground="{StaticResource TextMutedBrush}" 
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Text="CleanTool" Foreground="{DynamicResource TextPrimaryBrush}" 
+                                       FontWeight="Bold" FontSize="18"/>
+                            <Border Background="#1E284A" BorderBrush="{DynamicResource PrimaryAccentBrush}" BorderThickness="1" CornerRadius="4" Margin="8,0,0,0" Padding="6,1" VerticalAlignment="Center">
+                                <TextBlock Text="ZeroUI Powered" FontSize="10.5" FontWeight="Bold" Foreground="{DynamicResource PrimaryAccentBrush}"/>
+                            </Border>
+                        </StackPanel>
+                        <TextBlock Text="Sovereign Universe Optimizer • Obsidian Dark" Foreground="{DynamicResource TextMutedBrush}" 
                                    FontSize="11"/>
                     </StackPanel>
                 </StackPanel>
