@@ -195,17 +195,17 @@ public static class Program
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("====================================================================");
-                Console.WriteLine("⚠️  XÁC NHẬN DỌN DẸP THẬT (LIVE CLEAN CONFIRMATION)");
-                Console.WriteLine($"Số rule thực hiện: {rulesToRun.Count}");
-                Console.WriteLine("Các file rác sẽ bị XÓA VĨNH VIỄN khỏi hệ thống. Thao tác này KHÔNG THỂ hoàn tác!");
+                Console.WriteLine("⚠️  PERMANENT DELETION CONFIRMATION (LIVE CLEAN)");
+                Console.WriteLine($"Target Rules: {rulesToRun.Count}");
+                Console.WriteLine("Files will be PERMANENTLY REMOVED from disk. This cannot be undone!");
                 Console.WriteLine("====================================================================");
                 Console.ResetColor();
-                Console.Write("Bạn có chắc chắn muốn tiến hành xóa file không? (nhập 'yes' hoặc 'y' để xác nhận): ");
+                Console.Write("Are you sure you want to permanently delete these files? (type 'yes' or 'y'): ");
                 var confirmation = Console.ReadLine()?.Trim().ToLowerInvariant();
                 if (confirmation is not ("yes" or "y"))
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("\n[ĐÃ HỦY] Người dùng đã từ chối xác nhận. Không có file nào bị xóa.\n");
+                    Console.WriteLine("\n[ABORTED] Operation cancelled by user. No files were deleted.\n");
                     Console.ResetColor();
                     return 0;
                 }
@@ -509,16 +509,16 @@ public static class Program
             {
                 Console.ForegroundColor = ConsoleColor.Red;
                 Console.WriteLine("====================================================================");
-                Console.WriteLine($"⚠️  XÁC NHẬN GỠ CÀI ĐẶT: '{app.DisplayName}'");
-                Console.WriteLine("Hành động này sẽ thực thi trình gỡ cài đặt phần mềm trên hệ điều hành.");
+                Console.WriteLine($"⚠️  APPLICATION UNINSTALL CONFIRMATION: '{app.DisplayName}'");
+                Console.WriteLine("This will execute the software uninstaller on your operating system.");
                 Console.WriteLine("====================================================================");
                 Console.ResetColor();
-                Console.Write("Bạn có chắc chắn muốn gỡ ứng dụng này không? (nhập 'yes' hoặc 'y' để xác nhận): ");
+                Console.Write("Are you sure you want to proceed with uninstallation? (type 'yes' or 'y'): ");
                 var confirmation = Console.ReadLine()?.Trim().ToLowerInvariant();
                 if (confirmation is not ("yes" or "y"))
                 {
                     Console.ForegroundColor = ConsoleColor.Yellow;
-                    Console.WriteLine("\n[ĐÃ HỦY] Người dùng đã từ chối xác nhận. Hủy lệnh gỡ cài đặt.\n");
+                    Console.WriteLine("\n[ABORTED] Uninstallation cancelled by user.\n");
                     Console.ResetColor();
                     return 0;
                 }

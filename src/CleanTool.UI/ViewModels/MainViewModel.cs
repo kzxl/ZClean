@@ -363,7 +363,7 @@ public class MainViewModel : ViewModelBase
         var selected = Rules.Where(r => r.IsSelected && r.ScannedCount > 0).ToList();
         if (selected.Count == 0)
         {
-            ShowInfoBar("Không có mục nào đang chờ dọn dẹp.", "Info");
+            ShowInfoBar("No items are currently pending for cleanup.", "Info");
             return;
         }
 
@@ -372,20 +372,20 @@ public class MainViewModel : ViewModelBase
 
         // Explicit user confirmation required
         var result = MessageBox.Show(
-            $"⚠️ XÁC NHẬN XÓA DỮ LIỆU THẬT:\n\nBạn có chắc chắn muốn xóa vĩnh viễn {totalFiles:N0} files ({FormatBytes(totalBytes)}) thuộc {selected.Count} danh mục đã chọn?\n\nThao tác này sẽ xóa vật lý trên ổ đĩa và KHÔNG THỂ HOÀN TÁC!",
-            "Xác nhận Dọn dẹp Hệ thống",
+            $"⚠️ PERMANENT DELETION WARNING:\n\nAre you sure you want to permanently delete {totalFiles:N0} files ({FormatBytes(totalBytes)}) across {selected.Count} selected categories?\n\nThis physical deletion cannot be undone!",
+            "Confirm System Cleanup",
             MessageBoxButton.YesNo,
             MessageBoxImage.Warning,
             MessageBoxResult.No);
 
         if (result != MessageBoxResult.Yes)
         {
-            ShowInfoBar("Đã hủy thao tác dọn dẹp theo yêu cầu người dùng. Không có file nào bị xóa.", "Info");
+            ShowInfoBar("Cleanup cancelled by user. No files were modified.", "Info");
             return;
         }
 
         IsBusy = true;
-        StatusMessage = "Đang thực hiện dọn dẹp hệ thống...";
+        StatusMessage = "Performing live system cleanup...";
         ProgressValue = 0;
 
         try
@@ -403,13 +403,13 @@ public class MainViewModel : ViewModelBase
             foreach (var ruleVm in selected)
             {
                 ruleVm.IsBusy = true;
-                ruleVm.StatusText = "Đang xóa...";
+                ruleVm.StatusText = "Cleaning...";
 
                 var cleanResult = await ruleVm.Rule.CleanAsync(options);
 
                 ruleVm.ScannedSize = 0;
                 ruleVm.ScannedCount = 0;
-                ruleVm.StatusText = $"Đã xóa {cleanResult.DeletedCount:N0} ({FormatBytes(cleanResult.BytesFreed)})";
+                ruleVm.StatusText = $"Deleted {cleanResult.DeletedCount:N0} ({FormatBytes(cleanResult.BytesFreed)})";
                 ruleVm.IsBusy = false;
 
                 totalFreed += cleanResult.BytesFreed;
@@ -420,13 +420,13 @@ public class MainViewModel : ViewModelBase
             }
 
             UpdateTotals();
-            StatusMessage = $"Dọn dẹp hoàn tất! Đã giải phóng {FormatBytes(totalFreed)} ({totalDeleted:N0} files).";
-            ShowInfoBar($"Đã dọn dẹp thành công {FormatBytes(totalFreed)} dung lượng đĩa.", "Success");
+            StatusMessage = $"Cleanup finished: Reclaimed {FormatBytes(totalFreed)} ({totalDeleted:N0} files).";
+            ShowInfoBar($"Successfully cleaned {FormatBytes(totalFreed)} of disk storage.", "Success");
         }
         catch (Exception ex)
         {
-            StatusMessage = "Lỗi trong quá trình dọn dẹp.";
-            ShowInfoBar($"Dọn dẹp thất bại: {ex.Message}", "Error");
+            StatusMessage = "Error encountered during cleanup.";
+            ShowInfoBar($"Cleanup failed: {ex.Message}", "Error");
         }
         finally
         {
@@ -570,37 +570,37 @@ public class MainViewModel : ViewModelBase
 
         // Explicit user confirmation required
         var result = MessageBox.Show(
-            $"⚠️ XÁC NHẬN GỠ CÀI ĐẶT PHẦN MỀM:\n\nBạn có chắc chắn muốn thực hiện gỡ cài đặt phần mềm:\n'{SelectedApp.DisplayName}'\n(Phiên bản: {SelectedApp.DisplayVersion}, Nhà phát triển: {SelectedApp.Publisher})?\n\nLệnh gỡ cài đặt sẽ được thực thi trên máy tính của bạn.",
-            "Xác nhận gỡ phần mềm",
+            $"⚠️ UNINSTALL SOFTWARE CONFIRMATION:\n\nAre you sure you want to uninstall:\n'{SelectedApp.DisplayName}'\n(Version: {SelectedApp.DisplayVersion}, Publisher: {SelectedApp.Publisher})?\n\nThis will execute the software uninstaller on your workstation.",
+            "Confirm Software Uninstallation",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question,
             MessageBoxResult.No);
 
         if (result != MessageBoxResult.Yes)
         {
-            ShowInfoBar("Đã hủy gỡ cài đặt theo yêu cầu của bạn.", "Info");
+            ShowInfoBar("Uninstallation cancelled by user.", "Info");
             return;
         }
 
         IsBusy = true;
-        StatusMessage = $"Đang chạy bộ gỡ cài đặt cho {SelectedApp.DisplayName}...";
+        StatusMessage = $"Launching uninstaller for {SelectedApp.DisplayName}...";
 
         try
         {
             var execResult = await _uninstallerService.UninstallAppAsync(SelectedApp, quiet: false, dryRun: false);
             if (execResult.Success)
             {
-                ShowInfoBar($"Đã gỡ cài đặt '{SelectedApp.DisplayName}' thành công.", "Success");
+                ShowInfoBar($"Successfully uninstalled '{SelectedApp.DisplayName}'.", "Success");
                 ExecuteLoadApps();
             }
             else
             {
-                ShowInfoBar($"Gỡ cài đặt không thành công (Mã thoát: {execResult.ExitCode}).", "Error");
+                ShowInfoBar($"Uninstallation did not succeed (Exit code: {execResult.ExitCode}).", "Error");
             }
         }
         catch (Exception ex)
         {
-            ShowInfoBar($"Lỗi gỡ cài đặt: {ex.Message}", "Error");
+            ShowInfoBar($"Uninstallation error: {ex.Message}", "Error");
         }
         finally
         {

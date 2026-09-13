@@ -141,7 +141,7 @@
 
                 <!-- Safety Notice -->
                 <TextBlock Grid.Row="1" Grid.ColumnSpan="2" 
-                           Text="🔒 Bảo vệ an toàn: Thao tác xóa thực tế luôn yêu cầu người dùng xác nhận rõ ràng trước khi thực hiện." 
+                           Text="🔒 Safety Barrier Active: Live file deletion always requires explicit user confirmation before any physical items are purged." 
                            Foreground="{StaticResource TextMutedBrush}" FontSize="11" Margin="0,8,0,0"/>
             </Grid>
         </Border>
