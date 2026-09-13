@@ -1,7 +1,0 @@
-<Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
-    <RootNamespace>CleanTool.Core</RootNamespace>
-    <AssemblyName>CleanTool.Core</AssemblyName>
-  </PropertyGroup>
-</Project>
