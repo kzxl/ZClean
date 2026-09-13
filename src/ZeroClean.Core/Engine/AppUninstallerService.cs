@@ -18,6 +18,30 @@ public record InstalledAppInfo
     public bool IsBroken { get; init; }
     public RegistryHive SourceHive { get; init; } = RegistryHive.LocalMachine;
     public RegistryView SourceView { get; init; } = RegistryView.Default;
+
+    public string EngineType
+    {
+        get
+        {
+            if (IsBroken) return "Broken";
+            var str = (UninstallString ?? "").ToLowerInvariant();
+            if (str.Contains("msiexec")) return "MSI";
+            if (str.Contains("unins000") || str.Contains("inno")) return "InnoSetup";
+            if (str.Contains("nsis") || str.Contains("uninstall.exe")) return "NSIS";
+            if (str.Contains("setup")) return "Setup";
+            return "Standard";
+        }
+    }
+
+    public string InitialLetter
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(DisplayName)) return "A";
+            var trimmed = DisplayName.Trim();
+            return char.ToUpperInvariant(trimmed[0]).ToString();
+        }
+    }
 }
 
 public record AppLeftoverFolder
@@ -405,6 +429,28 @@ public class AppUninstallerService
         catch { }
 
         return false;
+    }
+
+    /// <summary>
+    /// Deletes an orphaned residual folder from AppData safely.
+    /// </summary>
+    public bool PurgeLeftoverFolder(AppLeftoverFolder folder, bool dryRun = true)
+    {
+        if (string.IsNullOrWhiteSpace(folder.FolderPath) || !Directory.Exists(folder.FolderPath))
+            return false;
+
+        if (dryRun)
+            return true;
+
+        try
+        {
+            Directory.Delete(folder.FolderPath, recursive: true);
+            return true;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static void CheckRegistryKeyExists(

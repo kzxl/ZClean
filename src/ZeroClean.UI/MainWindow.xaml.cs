@@ -56,7 +56,7 @@ public partial class MainWindow : Window
             }
             else if (index == 2 && vm.InstalledApps.Count == 0)
             {
-                vm.LoadAppsCommand.Execute(null);
+                _ = vm.ExecuteLoadAppsAsync();
             }
             else if (index == 3)
             {

@@ -28,10 +28,20 @@ public class MainViewModel : ViewModelBase
     private string _healthGrade = "A";
     private string _healthSummary = "Run 'Analyze Health' to evaluate system clutter.";
 
-    // Uninstaller State
+    // Uninstaller State & Metrics
+    private bool _isLoadingApps;
+    private int _totalAppsCount;
+    private long _totalAppsSize;
+    private string _totalAppsSizeFormatted = "0 B";
+    private int _brokenAppsCount;
+    private int _totalLeftoverCount;
+    private long _totalLeftoverSize;
+    private string _totalLeftoverSizeFormatted = "0 B";
+    private string _selectedFilterMode = "All";
     private string _searchAppText = "";
     private InstalledAppInfo? _selectedApp;
     private AppResidualAnalysis? _activeResidualAnalysis;
+    private AppLeftoverFolder? _selectedLeftoverFolder;
 
     // In-window InfoBar
     private bool _isInfoBarVisible;
@@ -87,6 +97,10 @@ public class MainViewModel : ViewModelBase
     public RelayCommand SimulateUninstallAppCommand { get; }
     public RelayCommand LiveUninstallAppCommand { get; }
     public RelayCommand LoadLeftoversCommand { get; }
+    public RelayCommand SetFilterModeCommand { get; }
+    public RelayCommand RemoveBrokenEntryCommand { get; }
+    public RelayCommand<AppLeftoverFolder> OpenLeftoverFolderCommand { get; }
+    public RelayCommand<AppLeftoverFolder> PurgeSelectedLeftoverCommand { get; }
     public RelayCommand ScanLargeFilesCommand { get; }
     public RelayCommand ScanWslDisksCommand { get; }
     public RelayCommand AnalyzeDismCommand { get; }
@@ -122,11 +136,15 @@ public class MainViewModel : ViewModelBase
         DismissInfoBarCommand = new RelayCommand(() => IsInfoBarVisible = false);
 
         RunAdvisorCommand = new RelayCommand(async () => await ExecuteAdvisorAsync(), () => !IsBusy);
-        LoadAppsCommand = new RelayCommand(ExecuteLoadApps, () => !IsBusy);
-        ScanAppResidualsCommand = new RelayCommand(ExecuteScanSelectedAppResiduals, () => !IsBusy && SelectedApp != null);
-        SimulateUninstallAppCommand = new RelayCommand(async () => await ExecuteSimulateUninstallAsync(), () => !IsBusy && SelectedApp != null);
-        LiveUninstallAppCommand = new RelayCommand(async () => await ExecuteLiveUninstallAsync(), () => !IsBusy && SelectedApp != null);
-        LoadLeftoversCommand = new RelayCommand(ExecuteLoadLeftovers, () => !IsBusy);
+        LoadAppsCommand = new RelayCommand(async () => await ExecuteLoadAppsAsync(forceReload: true), () => !IsBusy && !IsLoadingApps);
+        ScanAppResidualsCommand = new RelayCommand(ExecuteScanSelectedAppResiduals, () => !IsBusy && !IsLoadingApps && SelectedApp != null);
+        SimulateUninstallAppCommand = new RelayCommand(async () => await ExecuteSimulateUninstallAsync(), () => !IsBusy && !IsLoadingApps && SelectedApp != null);
+        LiveUninstallAppCommand = new RelayCommand(async () => await ExecuteLiveUninstallAsync(), () => !IsBusy && !IsLoadingApps && SelectedApp != null);
+        LoadLeftoversCommand = new RelayCommand(async () => await ExecuteLoadLeftoversAsync(), () => !IsBusy && !IsLoadingApps);
+        SetFilterModeCommand = new RelayCommand(param => { if (param is string mode) SelectedFilterMode = mode; });
+        RemoveBrokenEntryCommand = new RelayCommand(async () => await ExecuteRemoveBrokenEntryAsync(), () => SelectedApp != null && SelectedApp.IsBroken);
+        OpenLeftoverFolderCommand = new RelayCommand<AppLeftoverFolder>(ExecuteOpenLeftoverFolder);
+        PurgeSelectedLeftoverCommand = new RelayCommand<AppLeftoverFolder>(async folder => await ExecutePurgeLeftoverAsync(folder));
 
         ScanLargeFilesCommand = new RelayCommand(async () => await ExecuteScanLargeFilesAsync(), () => !IsBusy);
         ScanWslDisksCommand = new RelayCommand(async () => await ExecuteScanWslDisksAsync(), () => !IsBusy);
@@ -204,6 +222,79 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _healthSummary, value);
     }
 
+    public bool IsLoadingApps
+    {
+        get => _isLoadingApps;
+        set
+        {
+            if (SetProperty(ref _isLoadingApps, value))
+            {
+                LoadAppsCommand.CanExecute(null);
+                LoadLeftoversCommand.CanExecute(null);
+            }
+        }
+    }
+
+    public int TotalAppsCount
+    {
+        get => _totalAppsCount;
+        set => SetProperty(ref _totalAppsCount, value);
+    }
+
+    public long TotalAppsSize
+    {
+        get => _totalAppsSize;
+        set => SetProperty(ref _totalAppsSize, value);
+    }
+
+    public string TotalAppsSizeFormatted
+    {
+        get => _totalAppsSizeFormatted;
+        set => SetProperty(ref _totalAppsSizeFormatted, value);
+    }
+
+    public int BrokenAppsCount
+    {
+        get => _brokenAppsCount;
+        set => SetProperty(ref _brokenAppsCount, value);
+    }
+
+    public int TotalLeftoverCount
+    {
+        get => _totalLeftoverCount;
+        set => SetProperty(ref _totalLeftoverCount, value);
+    }
+
+    public long TotalLeftoverSize
+    {
+        get => _totalLeftoverSize;
+        set => SetProperty(ref _totalLeftoverSize, value);
+    }
+
+    public string TotalLeftoverSizeFormatted
+    {
+        get => _totalLeftoverSizeFormatted;
+        set => SetProperty(ref _totalLeftoverSizeFormatted, value);
+    }
+
+    public string SelectedFilterMode
+    {
+        get => _selectedFilterMode;
+        set
+        {
+            if (SetProperty(ref _selectedFilterMode, value))
+            {
+                ApplyAppFilter();
+            }
+        }
+    }
+
+    public AppLeftoverFolder? SelectedLeftoverFolder
+    {
+        get => _selectedLeftoverFolder;
+        set => SetProperty(ref _selectedLeftoverFolder, value);
+    }
+
     public string SearchAppText
     {
         get => _searchAppText;
@@ -226,6 +317,7 @@ public class MainViewModel : ViewModelBase
                 ScanAppResidualsCommand.CanExecute(null);
                 SimulateUninstallAppCommand.CanExecute(null);
                 LiveUninstallAppCommand.CanExecute(null);
+                RemoveBrokenEntryCommand.CanExecute(null);
             }
         }
     }
@@ -509,30 +601,54 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    public void ExecuteLoadApps()
+    public async Task ExecuteLoadAppsAsync(bool forceReload = false)
     {
-        IsBusy = true;
-        StatusMessage = "Enumerating installed applications from registry...";
+        if (IsLoadingApps) return;
+        if (!forceReload && InstalledApps.Count > 0) return;
+
+        IsLoadingApps = true;
+        StatusMessage = "Enumerating installed applications and scanning registry hives...";
 
         try
         {
-            var apps = _uninstallerService.GetInstalledApplications();
+            var (apps, leftovers) = await Task.Run(() =>
+            {
+                var scannedApps = _uninstallerService.GetInstalledApplications();
+                var scannedLeftovers = _uninstallerService.DetectLeftoverFolders();
+                return (scannedApps, scannedLeftovers);
+            });
+
             InstalledApps.Clear();
             foreach (var app in apps)
             {
                 InstalledApps.Add(app);
             }
 
+            LeftoverFolders.Clear();
+            foreach (var leftover in leftovers)
+            {
+                LeftoverFolders.Add(leftover);
+            }
+
+            TotalAppsCount = InstalledApps.Count;
+            TotalAppsSize = InstalledApps.Sum(a => a.EstimatedSizeBytes);
+            TotalAppsSizeFormatted = FormatBytes(TotalAppsSize);
+            BrokenAppsCount = InstalledApps.Count(a => a.IsBroken);
+            TotalLeftoverCount = LeftoverFolders.Count;
+            TotalLeftoverSize = LeftoverFolders.Sum(l => l.EstimatedSizeBytes);
+            TotalLeftoverSizeFormatted = FormatBytes(TotalLeftoverSize);
+
             ApplyAppFilter();
-            StatusMessage = $"Found {InstalledApps.Count} installed applications.";
+            StatusMessage = $"Software inventory loaded: {TotalAppsCount} applications ({TotalAppsSizeFormatted}), {TotalLeftoverCount} orphan leftovers ({TotalLeftoverSizeFormatted}).";
         }
         catch (Exception ex)
         {
+            StatusMessage = "Failed to load installed applications.";
             ShowInfoBar($"Failed to load installed apps: {ex.Message}", "Error");
         }
         finally
         {
-            IsBusy = false;
+            IsLoadingApps = false;
         }
     }
 
@@ -547,7 +663,16 @@ public class MainViewModel : ViewModelBase
                              a.Publisher.Contains(SearchAppText, StringComparison.OrdinalIgnoreCase));
         }
 
-        foreach (var a in q)
+        if (SelectedFilterMode == "Large")
+        {
+            q = q.Where(a => a.EstimatedSizeBytes >= 500L * 1024 * 1024);
+        }
+        else if (SelectedFilterMode == "Broken")
+        {
+            q = q.Where(a => a.IsBroken);
+        }
+
+        foreach (var a in q.OrderByDescending(a => a.EstimatedSizeBytes))
         {
             FilteredApps.Add(a);
         }
@@ -626,7 +751,7 @@ public class MainViewModel : ViewModelBase
             if (execResult.Success)
             {
                 ShowInfoBar($"Successfully uninstalled '{SelectedApp.DisplayName}'.", "Success");
-                ExecuteLoadApps();
+                await ExecuteLoadAppsAsync(forceReload: true);
             }
             else
             {
@@ -643,22 +768,25 @@ public class MainViewModel : ViewModelBase
         }
     }
 
-    public void ExecuteLoadLeftovers()
+    public async Task ExecuteLoadLeftoversAsync()
     {
-        IsBusy = true;
+        IsLoadingApps = true;
         StatusMessage = "Scanning AppData for residual folders...";
 
         try
         {
-            var list = _uninstallerService.DetectLeftoverFolders();
+            var list = await Task.Run(() => _uninstallerService.DetectLeftoverFolders());
             LeftoverFolders.Clear();
             foreach (var item in list)
             {
                 LeftoverFolders.Add(item);
             }
 
-            long total = LeftoverFolders.Sum(l => l.EstimatedSizeBytes);
-            ShowInfoBar($"Discovered {LeftoverFolders.Count} leftover folders totaling {FormatBytes(total)}.", "Warning");
+            TotalLeftoverCount = LeftoverFolders.Count;
+            TotalLeftoverSize = LeftoverFolders.Sum(l => l.EstimatedSizeBytes);
+            TotalLeftoverSizeFormatted = FormatBytes(TotalLeftoverSize);
+
+            ShowInfoBar($"Discovered {LeftoverFolders.Count} leftover folders totaling {TotalLeftoverSizeFormatted}.", "Warning");
             StatusMessage = $"Leftover folders scan complete ({LeftoverFolders.Count} found).";
         }
         catch (Exception ex)
@@ -667,7 +795,89 @@ public class MainViewModel : ViewModelBase
         }
         finally
         {
-            IsBusy = false;
+            IsLoadingApps = false;
+        }
+    }
+
+    public async Task ExecuteRemoveBrokenEntryAsync()
+    {
+        if (SelectedApp == null || !SelectedApp.IsBroken) return;
+
+        var result = MessageBox.Show(
+            $"⚠️ REMOVE BROKEN ENTRY:\n\nDo you want to remove the invalid uninstall entry for:\n'{SelectedApp.DisplayName}' from Windows Registry?\n\nThis will safely clean up the entry from Add/Remove Programs.",
+            "Confirm Broken Entry Removal",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question,
+            MessageBoxResult.No);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            bool removed = _uninstallerService.RemoveBrokenUninstallEntry(SelectedApp, dryRun: false);
+            if (removed)
+            {
+                ShowInfoBar($"Removed broken entry '{SelectedApp.DisplayName}' from Windows Registry.", "Success");
+                await ExecuteLoadAppsAsync(forceReload: true);
+            }
+            else
+            {
+                ShowInfoBar("Could not remove the entry. Elevated administrative rights may be required.", "Error");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowInfoBar($"Error removing entry: {ex.Message}", "Error");
+        }
+    }
+
+    public void ExecuteOpenLeftoverFolder(AppLeftoverFolder? folder)
+    {
+        if (folder != null && System.IO.Directory.Exists(folder.FolderPath))
+        {
+            try
+            {
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("explorer.exe", folder.FolderPath)
+                {
+                    UseShellExecute = true
+                });
+            }
+            catch { }
+        }
+    }
+
+    public async Task ExecutePurgeLeftoverAsync(AppLeftoverFolder? folder)
+    {
+        if (folder == null) return;
+
+        var result = MessageBox.Show(
+            $"⚠️ PERMANENT RESIDUAL DELETION:\n\nAre you sure you want to permanently delete residual folder:\n'{folder.FolderPath}'\n({FormatBytes(folder.EstimatedSizeBytes)}, {folder.FileCount} files)?\n\nThis action cannot be undone!",
+            "Confirm Residual Purge",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        try
+        {
+            bool purged = await Task.Run(() => _uninstallerService.PurgeLeftoverFolder(folder, dryRun: false));
+            if (purged)
+            {
+                LeftoverFolders.Remove(folder);
+                TotalLeftoverCount = LeftoverFolders.Count;
+                TotalLeftoverSize = LeftoverFolders.Sum(l => l.EstimatedSizeBytes);
+                TotalLeftoverSizeFormatted = FormatBytes(TotalLeftoverSize);
+                ShowInfoBar($"Purged residual folder '{folder.FolderName}' ({FormatBytes(folder.EstimatedSizeBytes)} reclaimed).", "Success");
+            }
+            else
+            {
+                ShowInfoBar($"Could not delete folder. File may be locked by a running process.", "Error");
+            }
+        }
+        catch (Exception ex)
+        {
+            ShowInfoBar($"Purge error: {ex.Message}", "Error");
         }
     }
 
