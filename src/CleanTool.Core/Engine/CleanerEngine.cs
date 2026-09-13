@@ -92,6 +92,29 @@ public class CleanerEngine
         return results;
     }
 
+    public IReadOnlyList<ICleanerRule> GetRulesForProfile(ScanProfile profile)
+    {
+        var all = _ruleRegistry.GetAllRules().ToList();
+        return profile switch
+        {
+            ScanProfile.Quick => all.Where(r => r.IsDefaultEnabled && r.Id != "sys.broken.shortcuts").ToList(),
+            ScanProfile.Deep => all,
+            ScanProfile.Developer => all.Where(r => r.Category == CleanCategory.Developer).ToList(),
+            ScanProfile.SystemOnly => all.Where(r => r.Category == CleanCategory.System).ToList(),
+            _ => all
+        };
+    }
+
+    public Task<IReadOnlyList<RuleScanResult>> ScanProfileAsync(
+        ScanProfile profile,
+        CleanOptions? options = null,
+        IProgress<ScanProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        var rules = GetRulesForProfile(profile).Select(r => r.Id);
+        return ScanAsync(rules, options, progress, cancellationToken);
+    }
+
     private List<ICleanerRule> GetTargetRules(IEnumerable<string>? ruleIds)
     {
         if (ruleIds == null)

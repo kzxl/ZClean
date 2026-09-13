@@ -7,11 +7,14 @@ using CleanTool.Rules;
 
 namespace CleanTool.UI.ViewModels;
 
+[global::System.Runtime.Versioning.SupportedOSPlatform("windows")]
 public class MainViewModel : ViewModelBase
 {
     private readonly CleanerEngine _engine;
     private readonly IRuleRegistry _registry;
     private readonly IDiskAnalyzer _diskAnalyzer;
+    private readonly CleanAdvisorService _advisorService;
+    private readonly AppUninstallerService _uninstallerService;
 
     private int _selectedTabIndex;
     private bool _isBusy;
@@ -20,6 +23,16 @@ public class MainViewModel : ViewModelBase
     private long _totalReclaimableBytes;
     private int _totalReclaimableFiles;
 
+    // Advisor State
+    private int _healthScore = 100;
+    private string _healthGrade = "A";
+    private string _healthSummary = "Run 'Analyze Health' to evaluate system clutter.";
+
+    // Uninstaller State
+    private string _searchAppText = "";
+    private InstalledAppInfo? _selectedApp;
+    private AppResidualAnalysis? _activeResidualAnalysis;
+
     // In-window InfoBar
     private bool _isInfoBarVisible;
     private string _infoBarMessage = "";
@@ -27,6 +40,11 @@ public class MainViewModel : ViewModelBase
 
     public ObservableCollection<RuleItemViewModel> Rules { get; } = new();
     public ObservableCollection<DiskDriveViewModel> Drives { get; } = new();
+    public ObservableCollection<CleanRecommendation> Recommendations { get; } = new();
+    public ObservableCollection<string> IssuesDetected { get; } = new();
+    public ObservableCollection<InstalledAppInfo> InstalledApps { get; } = new();
+    public ObservableCollection<InstalledAppInfo> FilteredApps { get; } = new();
+    public ObservableCollection<AppLeftoverFolder> LeftoverFolders { get; } = new();
 
     public RelayCommand ScanCommand { get; }
     public RelayCommand SimulateCleanCommand { get; }
@@ -34,6 +52,11 @@ public class MainViewModel : ViewModelBase
     public RelayCommand DeselectAllCommand { get; }
     public RelayCommand RefreshDrivesCommand { get; }
     public RelayCommand DismissInfoBarCommand { get; }
+    public RelayCommand RunAdvisorCommand { get; }
+    public RelayCommand LoadAppsCommand { get; }
+    public RelayCommand ScanAppResidualsCommand { get; }
+    public RelayCommand SimulateUninstallAppCommand { get; }
+    public RelayCommand LoadLeftoversCommand { get; }
 
     public MainViewModel()
     {
@@ -41,6 +64,8 @@ public class MainViewModel : ViewModelBase
         RuleRegistrar.RegisterAll(_registry);
         _engine = new CleanerEngine(_registry);
         _diskAnalyzer = new DiskAnalyzerService();
+        _advisorService = new CleanAdvisorService(_engine, _registry);
+        _uninstallerService = new AppUninstallerService();
 
         foreach (var rule in _registry.GetAllRules())
         {
@@ -62,6 +87,12 @@ public class MainViewModel : ViewModelBase
         RefreshDrivesCommand = new RelayCommand(LoadDrives);
         DismissInfoBarCommand = new RelayCommand(() => IsInfoBarVisible = false);
 
+        RunAdvisorCommand = new RelayCommand(async () => await ExecuteAdvisorAsync(), () => !IsBusy);
+        LoadAppsCommand = new RelayCommand(ExecuteLoadApps, () => !IsBusy);
+        ScanAppResidualsCommand = new RelayCommand(ExecuteScanSelectedAppResiduals, () => !IsBusy && SelectedApp != null);
+        SimulateUninstallAppCommand = new RelayCommand(async () => await ExecuteSimulateUninstallAsync(), () => !IsBusy && SelectedApp != null);
+        LoadLeftoversCommand = new RelayCommand(ExecuteLoadLeftovers, () => !IsBusy);
+
         LoadDrives();
         UpdateTotals();
     }
@@ -81,6 +112,11 @@ public class MainViewModel : ViewModelBase
             {
                 ScanCommand.CanExecute(null);
                 SimulateCleanCommand.CanExecute(null);
+                RunAdvisorCommand.CanExecute(null);
+                LoadAppsCommand.CanExecute(null);
+                ScanAppResidualsCommand.CanExecute(null);
+                SimulateUninstallAppCommand.CanExecute(null);
+                LoadLeftoversCommand.CanExecute(null);
             }
         }
     }
@@ -109,6 +145,55 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _totalReclaimableFiles, value);
     }
 
+    public int HealthScore
+    {
+        get => _healthScore;
+        set => SetProperty(ref _healthScore, value);
+    }
+
+    public string HealthGrade
+    {
+        get => _healthGrade;
+        set => SetProperty(ref _healthGrade, value);
+    }
+
+    public string HealthSummary
+    {
+        get => _healthSummary;
+        set => SetProperty(ref _healthSummary, value);
+    }
+
+    public string SearchAppText
+    {
+        get => _searchAppText;
+        set
+        {
+            if (SetProperty(ref _searchAppText, value))
+            {
+                ApplyAppFilter();
+            }
+        }
+    }
+
+    public InstalledAppInfo? SelectedApp
+    {
+        get => _selectedApp;
+        set
+        {
+            if (SetProperty(ref _selectedApp, value))
+            {
+                ScanAppResidualsCommand.CanExecute(null);
+                SimulateUninstallAppCommand.CanExecute(null);
+            }
+        }
+    }
+
+    public AppResidualAnalysis? ActiveResidualAnalysis
+    {
+        get => _activeResidualAnalysis;
+        set => SetProperty(ref _activeResidualAnalysis, value);
+    }
+
     public bool IsInfoBarVisible
     {
         get => _isInfoBarVisible;
@@ -127,36 +212,28 @@ public class MainViewModel : ViewModelBase
         set => SetProperty(ref _infoBarSeverity, value);
     }
 
-    private void SetAllRulesSelection(bool selected)
+    public void LoadDrives()
     {
-        foreach (var r in Rules)
+        Drives.Clear();
+        foreach (var drive in _diskAnalyzer.GetDrives())
         {
-            r.IsSelected = selected;
+            Drives.Add(new DiskDriveViewModel(drive));
+        }
+    }
+
+    public void SetAllRulesSelection(bool selected)
+    {
+        foreach (var rule in Rules)
+        {
+            rule.IsSelected = selected;
         }
         UpdateTotals();
     }
 
-    private void UpdateTotals()
+    public void UpdateTotals()
     {
-        long totalSize = 0;
-        int totalCount = 0;
-        foreach (var r in Rules.Where(r => r.IsSelected))
-        {
-            totalSize += r.ScannedSize;
-            totalCount += r.ScannedCount;
-        }
-
-        TotalReclaimableBytes = totalSize;
-        TotalReclaimableFiles = totalCount;
-    }
-
-    public void LoadDrives()
-    {
-        Drives.Clear();
-        foreach (var d in _diskAnalyzer.GetDrives())
-        {
-            Drives.Add(new DiskDriveViewModel(d));
-        }
+        TotalReclaimableBytes = Rules.Where(r => r.IsSelected).Sum(r => r.ScannedSize);
+        TotalReclaimableFiles = Rules.Where(r => r.IsSelected).Sum(r => r.ScannedCount);
     }
 
     public async Task ExecuteScanAsync()
@@ -164,12 +241,12 @@ public class MainViewModel : ViewModelBase
         var selected = Rules.Where(r => r.IsSelected).ToList();
         if (selected.Count == 0)
         {
-            ShowInfoBar("Please select at least one cleanup rule to scan.", "Warning");
+            ShowInfoBar("Please select at least one rule to scan.", "Warning");
             return;
         }
 
         IsBusy = true;
-        StatusMessage = "Scanning selected categories (Safe Mode)...";
+        StatusMessage = "Scanning selected targets...";
         ProgressValue = 0;
 
         try
@@ -193,7 +270,7 @@ public class MainViewModel : ViewModelBase
 
                 ruleVm.ScannedSize = scanResult.TotalSizeBytes;
                 ruleVm.ScannedCount = scanResult.TotalCount;
-                ruleVm.StatusText = scanResult.TotalCount > 0 ? "Items found" : "Clean";
+                ruleVm.StatusText = $"{scanResult.TotalCount:N0} items ({FormatBytes(scanResult.TotalSizeBytes)})";
                 ruleVm.IsBusy = false;
 
                 totalFoundSize += scanResult.TotalSizeBytes;
@@ -233,7 +310,6 @@ public class MainViewModel : ViewModelBase
 
         try
         {
-            // Guaranteed Safe DryRun mode to protect machine
             var options = new CleanOptions
             {
                 DryRun = true,
@@ -275,6 +351,164 @@ public class MainViewModel : ViewModelBase
         }
     }
 
+    public async Task ExecuteAdvisorAsync()
+    {
+        IsBusy = true;
+        StatusMessage = "Generating system health recommendations...";
+        ProgressValue = 30;
+
+        try
+        {
+            var report = await _advisorService.GenerateRecommendationsAsync();
+            HealthScore = report.HealthScore.Score;
+            HealthGrade = report.HealthScore.Grade.ToString();
+            HealthSummary = report.HealthScore.Summary;
+
+            IssuesDetected.Clear();
+            foreach (var issue in report.HealthScore.IssuesDetected)
+            {
+                IssuesDetected.Add(issue);
+            }
+
+            Recommendations.Clear();
+            foreach (var rec in report.Recommendations)
+            {
+                Recommendations.Add(rec);
+            }
+
+            ProgressValue = 100;
+            StatusMessage = $"Advisor assessment complete: {Recommendations.Count} recommendations generated.";
+            ShowInfoBar($"Advisor: System Health Score {HealthScore}/100 (Grade {HealthGrade}). {FormatBytes(report.TotalPotentialSavingsBytes)} reclaimable.", "Info");
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = "Advisor analysis failed.";
+            ShowInfoBar($"Advisor analysis failed: {ex.Message}", "Error");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public void ExecuteLoadApps()
+    {
+        IsBusy = true;
+        StatusMessage = "Enumerating installed applications from registry...";
+
+        try
+        {
+            var apps = _uninstallerService.GetInstalledApplications();
+            InstalledApps.Clear();
+            foreach (var app in apps)
+            {
+                InstalledApps.Add(app);
+            }
+
+            ApplyAppFilter();
+            StatusMessage = $"Found {InstalledApps.Count} installed applications.";
+        }
+        catch (Exception ex)
+        {
+            ShowInfoBar($"Failed to load installed apps: {ex.Message}", "Error");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public void ApplyAppFilter()
+    {
+        FilteredApps.Clear();
+        var q = InstalledApps.AsEnumerable();
+
+        if (!string.IsNullOrWhiteSpace(SearchAppText))
+        {
+            q = q.Where(a => a.DisplayName.Contains(SearchAppText, StringComparison.OrdinalIgnoreCase) ||
+                             a.Publisher.Contains(SearchAppText, StringComparison.OrdinalIgnoreCase));
+        }
+
+        foreach (var a in q)
+        {
+            FilteredApps.Add(a);
+        }
+    }
+
+    public void ExecuteScanSelectedAppResiduals()
+    {
+        if (SelectedApp == null) return;
+
+        IsBusy = true;
+        StatusMessage = $"Scanning residuals for {SelectedApp.DisplayName}...";
+
+        try
+        {
+            ActiveResidualAnalysis = _uninstallerService.ScanAppResiduals(SelectedApp);
+            ShowInfoBar($"Found {ActiveResidualAnalysis.RegistryKeysFound.Count} registry keys & {ActiveResidualAnalysis.DirectoriesFound.Count} residual directories ({FormatBytes(ActiveResidualAnalysis.TotalResidualSizeBytes)}).", "Info");
+            StatusMessage = "Residual scan completed.";
+        }
+        catch (Exception ex)
+        {
+            ShowInfoBar($"Residual scan error: {ex.Message}", "Error");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public async Task ExecuteSimulateUninstallAsync()
+    {
+        if (SelectedApp == null) return;
+
+        IsBusy = true;
+        StatusMessage = $"Simulating uninstall for {SelectedApp.DisplayName}...";
+
+        try
+        {
+            var result = await _uninstallerService.UninstallAppAsync(SelectedApp, quiet: true, dryRun: true);
+            ShowInfoBar(result.Message, "Warning");
+            StatusMessage = "Simulation complete.";
+        }
+        catch (Exception ex)
+        {
+            ShowInfoBar($"Uninstall simulation error: {ex.Message}", "Error");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    public void ExecuteLoadLeftovers()
+    {
+        IsBusy = true;
+        StatusMessage = "Scanning AppData for residual folders...";
+
+        try
+        {
+            var list = _uninstallerService.DetectLeftoverFolders();
+            LeftoverFolders.Clear();
+            foreach (var item in list)
+            {
+                LeftoverFolders.Add(item);
+            }
+
+            long total = LeftoverFolders.Sum(l => l.EstimatedSizeBytes);
+            ShowInfoBar($"Discovered {LeftoverFolders.Count} leftover folders totaling {FormatBytes(total)}.", "Warning");
+            StatusMessage = $"Leftover folders scan complete ({LeftoverFolders.Count} found).";
+        }
+        catch (Exception ex)
+        {
+            ShowInfoBar($"Leftover folders scan error: {ex.Message}", "Error");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
     private void ShowInfoBar(string message, string severity)
     {
         InfoBarMessage = message;
@@ -282,7 +516,7 @@ public class MainViewModel : ViewModelBase
         IsInfoBarVisible = true;
     }
 
-    private static string FormatBytes(long bytes)
+    public static string FormatBytes(long bytes)
     {
         string[] suffixes = { "B", "KB", "MB", "GB", "TB" };
         int counter = 0;

@@ -59,14 +59,53 @@
 
                 <!-- Navigation Tabs -->
                 <StackPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <RadioButton Content="⚡ Cleaner" IsChecked="{Binding SelectedTabIndex, Converter={x:Null}}"
-                                 Click="OnCleanerTabClicked"
+                    <RadioButton Content="⚡ Cleaner" Click="OnCleanerTabClicked"
                                  x:Name="TabCleaner" IsThreeState="False"
-                                 Style="{x:Null}" Margin="0,0,10,0">
+                                 Style="{x:Null}" Margin="0,0,8,0">
                         <RadioButton.Template>
                             <ControlTemplate TargetType="RadioButton">
                                 <Border x:Name="tabBorder" Background="#181A28" BorderBrush="#2E344E" BorderThickness="1"
-                                        CornerRadius="6" Padding="16,8" Cursor="Hand">
+                                        CornerRadius="6" Padding="14,7" Cursor="Hand">
+                                    <ContentPresenter/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="tabBorder" Property="Background" Value="#262A44"/>
+                                        <Setter TargetName="tabBorder" Property="BorderBrush" Value="{StaticResource PrimaryAccentBrush}"/>
+                                        <Setter Property="Foreground" Value="{StaticResource PrimaryAccentBrush}"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </RadioButton.Template>
+                    </RadioButton>
+
+                    <RadioButton Content="🎯 Advisor" Click="OnAdvisorTabClicked"
+                                 x:Name="TabAdvisor"
+                                 Style="{x:Null}" Margin="0,0,8,0">
+                        <RadioButton.Template>
+                            <ControlTemplate TargetType="RadioButton">
+                                <Border x:Name="tabBorder" Background="#181A28" BorderBrush="#2E344E" BorderThickness="1"
+                                        CornerRadius="6" Padding="14,7" Cursor="Hand">
+                                    <ContentPresenter/>
+                                </Border>
+                                <ControlTemplate.Triggers>
+                                    <Trigger Property="IsChecked" Value="True">
+                                        <Setter TargetName="tabBorder" Property="Background" Value="#262A44"/>
+                                        <Setter TargetName="tabBorder" Property="BorderBrush" Value="{StaticResource PrimaryAccentBrush}"/>
+                                        <Setter Property="Foreground" Value="{StaticResource PrimaryAccentBrush}"/>
+                                    </Trigger>
+                                </ControlTemplate.Triggers>
+                            </ControlTemplate>
+                        </RadioButton.Template>
+                    </RadioButton>
+
+                    <RadioButton Content="📦 Apps &amp; Leftovers" Click="OnUninstallerTabClicked"
+                                 x:Name="TabUninstaller"
+                                 Style="{x:Null}" Margin="0,0,8,0">
+                        <RadioButton.Template>
+                            <ControlTemplate TargetType="RadioButton">
+                                <Border x:Name="tabBorder" Background="#181A28" BorderBrush="#2E344E" BorderThickness="1"
+                                        CornerRadius="6" Padding="14,7" Cursor="Hand">
                                     <ContentPresenter/>
                                 </Border>
                                 <ControlTemplate.Triggers>
@@ -86,7 +125,7 @@
                         <RadioButton.Template>
                             <ControlTemplate TargetType="RadioButton">
                                 <Border x:Name="tabBorder" Background="#181A28" BorderBrush="#2E344E" BorderThickness="1"
-                                        CornerRadius="6" Padding="16,8" Cursor="Hand">
+                                        CornerRadius="6" Padding="14,7" Cursor="Hand">
                                     <ContentPresenter/>
                                 </Border>
                                 <ControlTemplate.Triggers>
@@ -116,6 +155,8 @@
         <!-- Content Area -->
         <Grid Grid.Row="2">
             <views:CleanerView x:Name="ViewCleaner" Visibility="Visible"/>
+            <views:AdvisorView x:Name="ViewAdvisor" Visibility="Collapsed"/>
+            <views:UninstallerOverview x:Name="ViewUninstaller" Visibility="Collapsed"/>
             <views:DiskAnalyzerView x:Name="ViewAnalyzer" Visibility="Collapsed"/>
         </Grid>
     </Grid>

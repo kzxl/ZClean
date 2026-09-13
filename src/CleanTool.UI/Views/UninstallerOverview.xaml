@@ -1,0 +1,204 @@
+<UserControl x:Class="CleanTool.UI.Views.UninstallerOverview"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:converters="clr-namespace:CleanTool.UI.Converters"
+             xmlns:opt="clr-namespace:ZeroUI.Wpf.Rendering.Optimizer;assembly=ZeroUI.Wpf">
+    <UserControl.Resources>
+        <converters:BytesToHumanConverter x:Key="BytesConverter"/>
+        <BooleanToVisibilityConverter x:Key="BoolToVisConverter"/>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Top Action Bar -->
+            <RowDefinition Height="*"/>    <!-- Split Apps & Residuals List -->
+        </Grid.RowDefinitions>
+
+        <!-- Top Action & Search Bar -->
+        <Border Grid.Row="0" Background="{StaticResource BgCardBrush}"
+                BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1"
+                CornerRadius="8" Padding="12,10" Margin="0,0,0,12"
+                opt:RenderOptimizer.Elevation="2">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="220"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <!-- Search Box -->
+                <TextBox Text="{Binding SearchAppText, UpdateSourceTrigger=PropertyChanged}"
+                         Background="{StaticResource BgInputBrush}" Foreground="{StaticResource TextPrimaryBrush}"
+                         BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1"
+                         Padding="8,4" VerticalAlignment="Center" Height="28">
+                    <TextBox.Resources>
+                        <Style TargetType="{x:Type Border}">
+                            <Setter Property="CornerRadius" Value="4"/>
+                        </Style>
+                    </TextBox.Resources>
+                </TextBox>
+
+                <!-- Action Buttons -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="12,0,0,0" VerticalAlignment="Center">
+                    <Button Content="🔄 Refresh Apps" Command="{Binding LoadAppsCommand}"
+                            Style="{StaticResource ModernButtonStyle}" Height="28" Padding="12,0" Margin="0,0,8,0"/>
+                    <Button Content="🔍 Residual Trace" Command="{Binding ScanAppResidualsCommand}"
+                            Style="{StaticResource ModernButtonStyle}" Height="28" Padding="12,0" Margin="0,0,8,0"/>
+                    <Button Content="🛡️ Simulate Uninstall" Command="{Binding SimulateUninstallAppCommand}"
+                            Style="{StaticResource ModernButtonStyle}" Height="28" Padding="12,0" Margin="0,0,8,0"/>
+                    <Button Content="📁 Orphan Leftovers" Command="{Binding LoadLeftoversCommand}"
+                            Style="{StaticResource ModernButtonStyle}" Height="28" Padding="12,0"/>
+                </StackPanel>
+
+                <!-- Apps Count Badge -->
+                <TextBlock Grid.Column="2" Text="{Binding FilteredApps.Count, StringFormat='Apps: {0}'}" 
+                           Foreground="{StaticResource TextSecondaryBrush}" FontWeight="SemiBold"
+                           FontSize="12.5" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- Main Apps List -->
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="3*"/>
+                <ColumnDefinition Width="2*"/>
+            </Grid.ColumnDefinitions>
+
+            <!-- Left: Applications List -->
+            <Border Grid.Column="0" Background="{StaticResource BgCardBrush}"
+                    BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1"
+                    CornerRadius="8" Padding="8" Margin="0,0,8,0">
+                <ListBox ItemsSource="{Binding FilteredApps}" SelectedItem="{Binding SelectedApp}"
+                         Background="Transparent" BorderThickness="0"
+                         ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <Border Margin="2,3" Padding="10,8" CornerRadius="6"
+                                    Background="{StaticResource BgInputBrush}"
+                                    BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <StackPanel VerticalAlignment="Center">
+                                        <TextBlock Text="{Binding DisplayName}" Foreground="{StaticResource TextPrimaryBrush}"
+                                                   FontWeight="SemiBold" FontSize="12.5"/>
+                                        <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
+                                            <TextBlock Text="{Binding Publisher}" Foreground="{StaticResource TextMutedBrush}" FontSize="11"/>
+                                            <TextBlock Text=" • " Foreground="{StaticResource TextMutedBrush}" FontSize="11"/>
+                                            <TextBlock Text="{Binding DisplayVersion}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="11"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <StackPanel Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                        <TextBlock Text="{Binding EstimatedSizeBytes, Converter={StaticResource BytesConverter}}"
+                                                   Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold"
+                                                   FontSize="12" HorizontalAlignment="Right"/>
+                                        <TextBlock Text="{Binding IsBroken, Converter={x:Null}}" HorizontalAlignment="Right">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock">
+                                                    <Setter Property="Text" Value="Installed"/>
+                                                    <Setter Property="Foreground" Value="{StaticResource SuccessAccentBrush}"/>
+                                                    <Setter Property="FontSize" Value="10.5"/>
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsBroken}" Value="True">
+                                                            <Setter Property="Text" Value="Broken"/>
+                                                            <Setter Property="Foreground" Value="#F87171"/>
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </Border>
+
+            <!-- Right: Residuals / Leftovers Inspector Panel -->
+            <Border Grid.Column="1" Background="{StaticResource BgCardBrush}"
+                    BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1"
+                    CornerRadius="8" Padding="12">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBlock Grid.Row="0" Text="Residual &amp; Leftover Trace" Foreground="{StaticResource TextPrimaryBrush}"
+                               FontWeight="Bold" FontSize="13.5" Margin="0,0,0,8"/>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <!-- Selected App Card -->
+                            <Border Background="{StaticResource BgInputBrush}" CornerRadius="6" Padding="10" Margin="0,0,0,10"
+                                    BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1">
+                                <StackPanel>
+                                    <TextBlock Text="Selected Application" Foreground="{StaticResource TextMutedBrush}" FontSize="10.5" FontWeight="SemiBold"/>
+                                    <TextBlock Text="{Binding SelectedApp.DisplayName, FallbackValue='(None selected)'}" 
+                                               Foreground="{StaticResource PrimaryAccentBrush}" FontWeight="Bold" FontSize="13" Margin="0,2,0,0"/>
+                                    <TextBlock Text="{Binding SelectedApp.UninstallString, FallbackValue='No uninstall string'}" 
+                                               Foreground="{StaticResource TextSecondaryBrush}" FontSize="10.5" FontFamily="Consolas" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- Residual Trace Output -->
+                            <TextBlock Text="Registry Traces" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="11.5" Margin="0,4,0,4"/>
+                            <ItemsControl ItemsSource="{Binding ActiveResidualAnalysis.RegistryKeysFound}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <TextBlock Text="{Binding}" Foreground="{StaticResource SecondaryAccentBrush}" 
+                                                   FontSize="11" FontFamily="Consolas" Margin="0,2,0,2"/>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <TextBlock Text="Residual Folders" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="11.5" Margin="0,10,0,4"/>
+                            <ItemsControl ItemsSource="{Binding ActiveResidualAnalysis.DirectoriesFound}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,2,0,2" Padding="6,4" Background="#181A28" CornerRadius="4">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding FolderPath}" Foreground="{StaticResource TextSecondaryBrush}" FontSize="10.5" TextWrapping="Wrap"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding EstimatedSizeBytes, Converter={StaticResource BytesConverter}}"
+                                                           Foreground="{StaticResource SuccessAccentBrush}" FontSize="10.5" FontWeight="SemiBold" Margin="6,0,0,0"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+
+                            <!-- Orphan Leftovers List -->
+                            <TextBlock Text="Detected Orphan AppData Folders" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="11.5" Margin="0,14,0,4"/>
+                            <ItemsControl ItemsSource="{Binding LeftoverFolders}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Margin="0,2,0,2" Padding="6,4" Background="#1E2034" CornerRadius="4">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+                                                <TextBlock Text="{Binding FolderName}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="11" FontWeight="SemiBold"/>
+                                                <TextBlock Grid.Column="1" Text="{Binding EstimatedSizeBytes, Converter={StaticResource BytesConverter}}"
+                                                           Foreground="{StaticResource SuccessAccentBrush}" FontSize="10.5" FontWeight="SemiBold"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</UserControl>

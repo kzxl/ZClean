@@ -197,7 +197,7 @@ public abstract class BaseFolderRule : ICleanerRule
                     continue;
                 }
 
-                bool isLocked = _fileLockDetector.IsFileLocked(file);
+                bool isLocked = (!options.DryRun && options.SkipLockedFiles) && _fileLockDetector.IsFileLocked(file);
                 if (isLocked && options.SkipLockedFiles && !options.DryRun)
                     continue;
 
