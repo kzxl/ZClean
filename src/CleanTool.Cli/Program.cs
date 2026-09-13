@@ -47,6 +47,12 @@ public static class Program
                 "uninstall" => await HandleUninstallAsync(cmdArgs),
                 "large-files" or "largefiles" => await HandleLargeFilesAsync(cmdArgs),
                 "empty-dirs" or "emptydirs" => await HandleEmptyDirsAsync(cmdArgs),
+                "shred" => await HandleShredAsync(cmdArgs),
+                "dism" => await HandleDismAsync(cmdArgs),
+                "wsl" => await HandleWslAsync(cmdArgs),
+                "docker" => await HandleDockerAsync(cmdArgs),
+                "vss" => await HandleVssAsync(cmdArgs),
+                "sentinel" => HandleSentinel(),
                 _ => HandleUnknownCommand(command)
             };
         }
@@ -96,7 +102,15 @@ public static class Program
         Console.WriteLine("  empty-dirs [path]        Find empty directory trees");
         Console.WriteLine("  dupes <folder>           Scan for duplicate files (3-stage SHA-256 analysis)");
         Console.WriteLine("  mem                      Trim process memory working sets");
-        Console.WriteLine("  dev [path]               Scan dev workspaces for dormant repos & build artifacts\n");
+        Console.WriteLine("  dev [path]               Scan dev workspaces for dormant repos & build artifacts");
+        Console.WriteLine();
+        Console.WriteLine("High-Value Extension Commands:");
+        Console.WriteLine("  sentinel                 Real-time disk threshold watchdog (< 15% / < 5% margin alerts)");
+        Console.WriteLine("  shred <path>             DoD 5220.22-M 3-pass secure cryptographic file shredder");
+        Console.WriteLine("  dism [options]           WinSxS Component Store analysis & cleanup (--reset-base)");
+        Console.WriteLine("  wsl [options]            Inspect & shrink WSL2 ext4.vhdx virtual disks (--compact)");
+        Console.WriteLine("  docker [options]         Docker container/image/cache reclamation (--prune, --volumes)");
+        Console.WriteLine("  vss [options]            Volume Shadow Copies & restore points manager (--purge-old)\n");
         Console.WriteLine("Options for scan & clean:");
         Console.WriteLine("  --profile <quick|deep|dev|system>  Pre-configured scan profile");
         Console.WriteLine("  --category <name>        Filter by category (System, Developer, Browser, Application)");
@@ -1001,5 +1015,603 @@ public static class Program
     private static string Truncate(string str, int maxLen)
     {
         return str.Length <= maxLen ? str : str[..(maxLen - 3)] + "...";
+    }
+
+    private static async Task<int> HandleShredAsync(string[] args)
+    {
+        if (args.Length == 0 || args[0].StartsWith("-"))
+        {
+            Console.WriteLine("Usage: cleantool shred <file-or-dir> [--method <dod|quick|gutmann>] [--execute] [--yes|-y]");
+            Console.WriteLine("  --method <name>   dod (3 passes, default), quick (1 pass), gutmann (7 passes)");
+            Console.WriteLine("  --execute         Perform actual overwriting and destruction (Dry-run by default)");
+            Console.WriteLine("  --yes, -y         Skip interactive confirmation prompt");
+            return 1;
+        }
+
+        var targetPath = args[0];
+        bool isExecute = args.Contains("--execute");
+        bool autoConfirm = args.Contains("--yes") || args.Contains("-y");
+        var method = ShredMethod.DoD_5220_22_M;
+
+        for (int i = 1; i < args.Length; i++)
+        {
+            if (args[i] == "--method" && i + 1 < args.Length)
+            {
+                method = args[++i].ToLowerInvariant() switch
+                {
+                    "quick" => ShredMethod.QuickZero,
+                    "gutmann" => ShredMethod.GutmannLite,
+                    _ => ShredMethod.DoD_5220_22_M
+                };
+            }
+        }
+
+        var shredder = new FileShredderService();
+        var fullPath = Path.GetFullPath(targetPath);
+
+        if (!File.Exists(fullPath) && !Directory.Exists(fullPath))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"[ERROR] Target path does not exist: '{fullPath}'");
+            Console.ResetColor();
+            return 1;
+        }
+
+        bool isDir = Directory.Exists(fullPath);
+
+        if (!isExecute)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($">>> DRY-RUN MODE: Simulating shred of {(isDir ? "directory" : "file")}: {fullPath}");
+            Console.WriteLine($"Method: {method} (DoD Standard)");
+            Console.WriteLine("No data will be overwritten or deleted. Run with '--execute' to perform secure wipe.\n");
+            Console.ResetColor();
+
+            var dryResult = isDir
+                ? await shredder.ShredDirectoryAsync(fullPath, new ShredOptions { DryRun = true, Method = method })
+                : await shredder.ShredFileAsync(fullPath, new ShredOptions { DryRun = true, Method = method });
+
+            Console.WriteLine($"Target: {dryResult.TargetPath}");
+            Console.WriteLine($"Files: {dryResult.FilesShredded:N0}");
+            Console.WriteLine($"Size: {FormatBytes(dryResult.TotalBytesShredded)}");
+            Console.WriteLine($"Passes: {dryResult.PassesPerformed}");
+            return 0;
+        }
+
+        if (!autoConfirm)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("====================================================================");
+            Console.WriteLine("⚠️  PERMANENT CRYPTOGRAPHIC FILE SHREDDER (DOD 5220.22-M)");
+            Console.WriteLine($"Target: {fullPath}");
+            Console.WriteLine($"Method: {method}");
+            Console.WriteLine("Files will be OVERWRITTEN WITH BYTE PATTERNS, TRUNCATED, AND DESTROYED.");
+            Console.WriteLine("THIS DATA CANNOT BE RECOVERED BY ANY FORENSIC OR UNDELETE SOFTWARE!");
+            Console.WriteLine("====================================================================");
+            Console.ResetColor();
+            Console.Write("Are you absolutely sure you want to permanently shred this? (type 'yes' or 'y'): ");
+            var confirm = Console.ReadLine()?.Trim().ToLowerInvariant();
+            if (confirm is not ("yes" or "y"))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("\n[ABORTED] Shred operation cancelled by user. No files were modified.\n");
+                Console.ResetColor();
+                return 0;
+            }
+            Console.WriteLine();
+        }
+
+        Console.ForegroundColor = ConsoleColor.Red;
+        Console.WriteLine($">>> SHREDDING IN PROGRESS: {fullPath}...");
+        Console.ResetColor();
+
+        var result = isDir
+            ? await shredder.ShredDirectoryAsync(fullPath, new ShredOptions { DryRun = false, Method = method })
+            : await shredder.ShredFileAsync(fullPath, new ShredOptions { DryRun = false, Method = method });
+
+        if (result.Success)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"\n[SUCCESS] Shred completed!");
+            Console.WriteLine($"Files obliterated: {result.FilesShredded:N0}");
+            Console.WriteLine($"Total bytes shredded: {FormatBytes(result.TotalBytesShredded)}");
+            Console.WriteLine($"Overwriting passes: {result.PassesPerformed} ({result.Method})");
+            Console.ResetColor();
+            return 0;
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\n[ERROR] Shred failed: {result.ErrorMessage}");
+            Console.ResetColor();
+            return 1;
+        }
+    }
+
+    private static async Task<int> HandleDismAsync(string[] args)
+    {
+        bool resetBase = args.Contains("--reset-base");
+        bool isExecute = args.Contains("--execute");
+        bool autoConfirm = args.Contains("--yes") || args.Contains("-y");
+
+        var dism = new DismComponentService();
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("Analyzing WinSxS Component Store via DISM (this may take a moment)...");
+        Console.ResetColor();
+
+        var analysis = await dism.AnalyzeComponentStoreAsync();
+        if (analysis.Success)
+        {
+            Console.WriteLine("\nWinSxS Component Store Analysis:");
+            Console.WriteLine(new string('-', 55));
+            Console.WriteLine("{0,-35} : {1}", "Component Store (WinSxS) Size", analysis.ComponentStoreSize);
+            Console.WriteLine("{0,-35} : {1}", "Actual Size of Component Store", analysis.ActualSize);
+            Console.WriteLine("{0,-35} : {1}", "Shared with Windows", analysis.SharedWithWindows);
+            Console.WriteLine("{0,-35} : {1}", "Backups & Disabled Features", analysis.BackupsAndFeatures);
+            Console.WriteLine("{0,-35} : {1}", "Cache & Temporary Data", analysis.CacheAndTemp);
+            Console.WriteLine("{0,-35} : {1}", "Superseded Packages Count", analysis.SupersededPackagesCount);
+            Console.WriteLine("{0,-35} : {1}", "Date of Last Cleanup", analysis.DateOfLastCleanup);
+            Console.Write("{0,-35} : ", "Cleanup Recommended");
+
+            if (analysis.IsCleanupRecommended)
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("YES (Cleanup will reclaim space)");
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.WriteLine("NO (Store is already compact)");
+            }
+            Console.ResetColor();
+            Console.WriteLine(new string('-', 55));
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.WriteLine($"[NOTICE] DISM Analysis: {analysis.ErrorMessage}");
+            Console.ResetColor();
+        }
+
+        if (!isExecute)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine("\n>>> DRY-RUN: To execute DISM component store cleanup, run:");
+            Console.WriteLine($"    cleantool dism {(resetBase ? "--reset-base " : "")}--execute");
+            Console.WriteLine("Note: Administrator privileges required.");
+            Console.ResetColor();
+            return 0;
+        }
+
+        if (!autoConfirm)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("\n====================================================================");
+            Console.WriteLine("⚠️  DISM COMPONENT STORE CLEANUP CONFIRMATION");
+            Console.WriteLine($"ResetBase Enabled: {resetBase}");
+            if (resetBase)
+            {
+                Console.WriteLine("WARNING: With --reset-base, superseded updates cannot be uninstalled!");
+            }
+            Console.WriteLine("This will execute Windows DISM /StartComponentCleanup.");
+            Console.WriteLine("====================================================================");
+            Console.ResetColor();
+            Console.Write("Are you sure you want to proceed with DISM cleanup? (type 'yes' or 'y'): ");
+            var confirm = Console.ReadLine()?.Trim().ToLowerInvariant();
+            if (confirm is not ("yes" or "y"))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("\n[ABORTED] DISM cleanup cancelled by user.\n");
+                Console.ResetColor();
+                return 0;
+            }
+        }
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("\nExecuting DISM StartComponentCleanup (this may take several minutes)...");
+        Console.ResetColor();
+
+        var result = await dism.RunCleanupAsync(resetBase, dryRun: false);
+        if (result.Success)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("\n[SUCCESS] DISM Component Store cleanup completed successfully!");
+            Console.ResetColor();
+            if (!string.IsNullOrWhiteSpace(result.StandardOutput))
+            {
+                Console.WriteLine(result.StandardOutput);
+            }
+            return 0;
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\n[ERROR] DISM cleanup failed (Exit code: {result.ExitCode}): {result.ErrorMessage}");
+            Console.ResetColor();
+            return 1;
+        }
+    }
+
+    private static async Task<int> HandleWslAsync(string[] args)
+    {
+        bool isCompact = args.Contains("--compact");
+        bool isExecute = args.Contains("--execute");
+        bool autoConfirm = args.Contains("--yes") || args.Contains("-y");
+        string? targetPath = null;
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "--path" && i + 1 < args.Length)
+            {
+                targetPath = args[++i];
+            }
+        }
+
+        var wsl = new DockerWslService();
+        var vdisks = await wsl.DiscoverWslVdisksAsync();
+
+        Console.WriteLine("Discovered WSL2 / Docker Virtual Disks (ext4.vhdx):");
+        Console.WriteLine(new string('-', 85));
+        Console.WriteLine("{0,-25} {1,12} {2}", "Distro / Identifier", "Size", "File Path");
+        Console.WriteLine(new string('-', 85));
+
+        if (vdisks.Count == 0)
+        {
+            Console.WriteLine("No WSL2 or Docker ext4.vhdx virtual disks detected in standard locations.");
+            return 0;
+        }
+
+        foreach (var v in vdisks)
+        {
+            Console.WriteLine("{0,-25} {1,12} {2}", Truncate(v.DistroName, 24), v.SizeFormatted, v.FilePath);
+        }
+        Console.WriteLine(new string('-', 85));
+
+        if (!isCompact)
+        {
+            Console.WriteLine("\nTo compact a virtual disk and reclaim unallocated space, run:");
+            Console.WriteLine("    cleantool wsl --compact [--path <vhdx-path>] --execute");
+            return 0;
+        }
+
+        var selectedDisk = !string.IsNullOrWhiteSpace(targetPath)
+            ? vdisks.FirstOrDefault(v => v.FilePath.Equals(targetPath, StringComparison.OrdinalIgnoreCase)) ?? new WslVdiskInfo { DistroName = "Custom", FilePath = targetPath }
+            : vdisks.OrderByDescending(v => v.SizeBytes).First();
+
+        if (!isExecute)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"\n>>> DRY-RUN: Prepared compaction for '{selectedDisk.DistroName}' ({selectedDisk.SizeFormatted}):");
+            Console.WriteLine($"Path: {selectedDisk.FilePath}");
+            Console.WriteLine("Generated diskpart commands:");
+            Console.WriteLine(wsl.GenerateDiskpartScript(selectedDisk.FilePath));
+            Console.WriteLine("Run with '--execute' and Administrator privileges to execute diskpart compaction.\n");
+            Console.ResetColor();
+            return 0;
+        }
+
+        if (!autoConfirm)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("\n====================================================================");
+            Console.WriteLine("⚠️  WSL2 VIRTUAL DISK COMPACTION CONFIRMATION");
+            Console.WriteLine($"Target: {selectedDisk.FilePath} ({selectedDisk.SizeFormatted})");
+            Console.WriteLine("WSL will be temporarily shut down ('wsl --shutdown').");
+            Console.WriteLine("Windows diskpart will attach readonly, compact, and detach the disk.");
+            Console.WriteLine("====================================================================");
+            Console.ResetColor();
+            Console.Write("Are you sure you want to compact this virtual disk? (type 'yes' or 'y'): ");
+            var confirm = Console.ReadLine()?.Trim().ToLowerInvariant();
+            if (confirm is not ("yes" or "y"))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("\n[ABORTED] Compaction cancelled by user.\n");
+                Console.ResetColor();
+                return 0;
+            }
+        }
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"\nCompacting '{Path.GetFileName(selectedDisk.FilePath)}' via diskpart (please wait)...");
+        Console.ResetColor();
+
+        var result = await wsl.CompactVdiskAsync(selectedDisk.FilePath, dryRun: false);
+        if (result.Success)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"\n[SUCCESS] WSL virtual disk successfully compacted!");
+            Console.WriteLine($"Initial Size : {FormatBytes(result.InitialSizeBytes)}");
+            Console.WriteLine($"Final Size   : {FormatBytes(result.FinalSizeBytes)}");
+            Console.WriteLine($"Space Saved  : {FormatBytes(result.ReclaimedBytes)}");
+            Console.ResetColor();
+            return 0;
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\n[ERROR] WSL compact failed: {result.ErrorMessage}");
+            Console.ResetColor();
+            return 1;
+        }
+    }
+
+    private static async Task<int> HandleDockerAsync(string[] args)
+    {
+        bool isPrune = args.Contains("--prune");
+        bool includeVolumes = args.Contains("--volumes");
+        bool isExecute = args.Contains("--execute");
+        bool autoConfirm = args.Contains("--yes") || args.Contains("-y");
+
+        var docker = new DockerWslService();
+        var status = await docker.GetDockerStatusAsync();
+
+        if (!status.IsDockerInstalled)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.WriteLine("[NOTICE] Docker CLI is not found on your system PATH.");
+            Console.ResetColor();
+            return 0;
+        }
+
+        if (!status.IsDockerRunning)
+        {
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.WriteLine($"[NOTICE] Docker daemon is currently not running or unreachable: {status.ErrorMessage}");
+            Console.ResetColor();
+            return 0;
+        }
+
+        Console.WriteLine("Docker System Space Utilization (docker system df):");
+        Console.WriteLine(new string('-', 68));
+        Console.WriteLine("{0,-18} {1,8} {2,8} {3,14} {4,16}", "Type", "Total", "Active", "Size", "Reclaimable");
+        Console.WriteLine(new string('-', 68));
+
+        foreach (var item in status.Items)
+        {
+            Console.WriteLine("{0,-18} {1,8} {2,8} {3,14} {4,16}", item.Type, item.TotalCount, item.ActiveCount, item.Size, item.Reclaimable);
+        }
+        Console.WriteLine(new string('-', 68));
+
+        if (!isPrune)
+        {
+            Console.WriteLine("\nTo reclaim Docker space (dangling images, stopped containers, build cache):");
+            Console.WriteLine("    cleantool docker --prune [--volumes] --execute");
+            return 0;
+        }
+
+        if (!isExecute)
+        {
+            var dryResult = await docker.PruneDockerAsync(includeVolumes, dryRun: true);
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"\n{dryResult.Output}");
+            Console.WriteLine("Run with '--execute' to perform Docker prune.\n");
+            Console.ResetColor();
+            return 0;
+        }
+
+        if (!autoConfirm)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("\n====================================================================");
+            Console.WriteLine("⚠️  DOCKER PRUNE CONFIRMATION");
+            Console.WriteLine($"Include Volumes: {includeVolumes}");
+            Console.WriteLine("Stopped containers, dangling images, build cache will be purged.");
+            if (includeVolumes)
+            {
+                Console.WriteLine("WARNING: Unused local volumes will also be PERMANENTLY REMOVED!");
+            }
+            Console.WriteLine("====================================================================");
+            Console.ResetColor();
+            Console.Write("Are you sure you want to prune Docker resources? (type 'yes' or 'y'): ");
+            var confirm = Console.ReadLine()?.Trim().ToLowerInvariant();
+            if (confirm is not ("yes" or "y"))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("\n[ABORTED] Docker prune cancelled by user.\n");
+                Console.ResetColor();
+                return 0;
+            }
+        }
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("\nExecuting Docker prune...");
+        Console.ResetColor();
+
+        var result = await docker.PruneDockerAsync(includeVolumes, dryRun: false);
+        if (result.Success)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("\n[SUCCESS] Docker prune finished successfully!");
+            Console.ResetColor();
+            if (!string.IsNullOrWhiteSpace(result.Output))
+            {
+                Console.WriteLine(result.Output);
+            }
+            return 0;
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\n[ERROR] Docker prune failed: {result.ErrorMessage}");
+            Console.ResetColor();
+            return 1;
+        }
+    }
+
+    private static async Task<int> HandleVssAsync(string[] args)
+    {
+        bool isPurgeOld = args.Contains("--purge-old");
+        bool isExecute = args.Contains("--execute");
+        bool autoConfirm = args.Contains("--yes") || args.Contains("-y");
+        string drive = "C:";
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i] == "--drive" && i + 1 < args.Length)
+            {
+                drive = args[++i];
+            }
+        }
+
+        var vss = new VssManagerService();
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"Querying Volume Shadow Copies & Restore Points for {drive}...");
+        Console.ResetColor();
+
+        var report = await vss.GetShadowCopiesReportAsync(drive);
+
+        if (report.Success)
+        {
+            Console.WriteLine("\nVolume Shadow Storage Allocation:");
+            Console.WriteLine(new string('-', 60));
+            foreach (var st in report.StorageUsage)
+            {
+                Console.WriteLine("{0,-20} : {1}", "Volume", st.ForVolume);
+                Console.WriteLine("{0,-20} : {1}", "Used Storage", st.UsedSpace);
+                Console.WriteLine("{0,-20} : {1}", "Allocated Storage", st.AllocatedSpace);
+                Console.WriteLine("{0,-20} : {1}", "Maximum Storage", st.MaximumSpace);
+                Console.WriteLine(new string('-', 60));
+            }
+
+            Console.WriteLine($"Shadow Copies Count: {report.ShadowCopies.Count}");
+            if (report.ShadowCopies.Count > 0)
+            {
+                Console.WriteLine("\n{0,-38} {1,-24} {2}", "Shadow Copy ID", "Creation Time", "Volume");
+                Console.WriteLine(new string('-', 75));
+                foreach (var sc in report.ShadowCopies)
+                {
+                    Console.WriteLine("{0,-38} {1,-24} {2}", sc.ShadowCopyId, sc.CreationTime, sc.OriginalVolume);
+                }
+                Console.WriteLine(new string('-', 75));
+            }
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.DarkYellow;
+            Console.WriteLine($"[NOTICE] VSS Query: {report.ErrorMessage}");
+            Console.ResetColor();
+        }
+
+        if (!isPurgeOld)
+        {
+            Console.WriteLine("\nTo safely purge the oldest shadow copy while retaining recent restore points:");
+            Console.WriteLine($"    cleantool vss --purge-old [--drive {drive}] --execute");
+            return 0;
+        }
+
+        if (!isExecute)
+        {
+            var dryResult = await vss.PurgeOldestShadowAsync(drive, dryRun: true);
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"\n{dryResult.Output}");
+            Console.WriteLine("Run with '--execute' and Administrator privileges to purge.\n");
+            Console.ResetColor();
+            return 0;
+        }
+
+        if (!autoConfirm)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("\n====================================================================");
+            Console.WriteLine("⚠️  VSS SHADOW COPY PURGE CONFIRMATION");
+            Console.WriteLine($"Drive: {drive}");
+            Console.WriteLine("This will permanently delete the OLDEST restore point/shadow copy.");
+            Console.WriteLine("Recent restore points will remain intact.");
+            Console.WriteLine("====================================================================");
+            Console.ResetColor();
+            Console.Write("Are you sure you want to delete the oldest shadow copy? (type 'yes' or 'y'): ");
+            var confirm = Console.ReadLine()?.Trim().ToLowerInvariant();
+            if (confirm is not ("yes" or "y"))
+            {
+                Console.ForegroundColor = ConsoleColor.Yellow;
+                Console.WriteLine("\n[ABORTED] VSS purge cancelled by user.\n");
+                Console.ResetColor();
+                return 0;
+            }
+        }
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"\nPurging oldest shadow copy on {drive}...");
+        Console.ResetColor();
+
+        var result = await vss.PurgeOldestShadowAsync(drive, dryRun: false);
+        if (result.Success)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine($"\n[SUCCESS] Oldest shadow copy on {drive} purged successfully!");
+            Console.ResetColor();
+            if (!string.IsNullOrWhiteSpace(result.Output))
+            {
+                Console.WriteLine(result.Output);
+            }
+            return 0;
+        }
+        else
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"\n[ERROR] VSS purge failed: {result.ErrorMessage}");
+            Console.ResetColor();
+            return 1;
+        }
+    }
+
+    private static int HandleSentinel()
+    {
+        var sentinel = new StorageSentinelService();
+        var report = sentinel.EvaluateSystemDrives();
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine("STORAGE SENTINEL - REAL-TIME DISK MARGIN WATCHDOG");
+        Console.ResetColor();
+        Console.WriteLine($"Report Time: {report.Timestamp:yyyy-MM-dd HH:mm:ss}\n");
+
+        Console.WriteLine("{0,-8} {1,-16} {2,12} {3,12} {4,10} {5,-10}", "Drive", "Label", "Total", "Free", "% Free", "Status");
+        Console.WriteLine(new string('-', 72));
+
+        foreach (var d in report.Drives)
+        {
+            var statusColor = d.AlertLevel switch
+            {
+                DriveAlertLevel.Critical => ConsoleColor.Red,
+                DriveAlertLevel.Warning => ConsoleColor.Yellow,
+                _ => ConsoleColor.Green
+            };
+
+            Console.Write("{0,-8} {1,-16} {2,12} {3,12} {4,9:0.0}% ", 
+                d.DriveName, Truncate(d.DriveLabel, 15), d.TotalFormatted, d.FreeFormatted, d.PercentFree);
+
+            Console.ForegroundColor = statusColor;
+            Console.WriteLine("{0,-10}", d.AlertLevel.ToString().ToUpperInvariant());
+            Console.ResetColor();
+
+            if (!string.IsNullOrWhiteSpace(d.AlertMessage))
+            {
+                Console.ForegroundColor = statusColor;
+                Console.WriteLine($"   └─ {d.AlertMessage}");
+                Console.ResetColor();
+            }
+        }
+        Console.WriteLine(new string('=', 72));
+
+        Console.Write("Overall Sentinel Health: ");
+        var overallColor = report.OverallStatus switch
+        {
+            DriveAlertLevel.Critical => ConsoleColor.Red,
+            DriveAlertLevel.Warning => ConsoleColor.Yellow,
+            _ => ConsoleColor.Green
+        };
+        Console.ForegroundColor = overallColor;
+        Console.WriteLine(report.OverallStatus.ToString().ToUpperInvariant());
+        Console.ResetColor();
+
+        Console.WriteLine("\nActionable Recommendations:");
+        foreach (var rec in report.ActionableRecommendations)
+        {
+            Console.WriteLine($"  {rec}");
+        }
+        Console.WriteLine();
+
+        return report.OverallStatus == DriveAlertLevel.Critical ? 2 : 0;
     }
 }
