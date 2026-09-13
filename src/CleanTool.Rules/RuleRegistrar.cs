@@ -22,6 +22,7 @@ public static class RuleRegistrar
         registry.Register(new ThumbnailCacheRule());
         registry.Register(new WindowsErrorReportingRule());
         registry.Register(new RecycleBinRule());
+        registry.Register(new BrokenShortcutRule());
 
         // Developer rules
         registry.Register(new NuGetCacheRule());

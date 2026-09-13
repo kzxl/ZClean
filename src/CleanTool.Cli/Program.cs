@@ -35,6 +35,9 @@ public static class Program
                 "scan" => await HandleScanAsync(engine, registry, cmdArgs),
                 "clean" => await HandleCleanAsync(engine, registry, cmdArgs),
                 "analyze" => await HandleAnalyzeAsync(analyzer, cmdArgs),
+                "startup" => HandleStartup(),
+                "dupes" => await HandleDuplicatesAsync(cmdArgs),
+                "mem" => await HandleMemoryAsync(),
                 _ => HandleUnknownCommand(command)
             };
         }
@@ -69,7 +72,10 @@ public static class Program
         Console.WriteLine("  list                  List all available cleaner rules and categories");
         Console.WriteLine("  scan                  Scan system for junk files without deleting");
         Console.WriteLine("  clean                 Perform cleanup (Dry-run simulation by default)");
-        Console.WriteLine("  analyze [path]        Inspect disk storage usage and directory hierarchy\n");
+        Console.WriteLine("  analyze [path]        Inspect disk storage usage and directory hierarchy");
+        Console.WriteLine("  startup               Inspect Windows startup programs (Registry & Folder)");
+        Console.WriteLine("  dupes <folder>        Scan for duplicate files (3-stage SHA-256 analysis)");
+        Console.WriteLine("  mem                   Trim process memory working sets\n");
         Console.WriteLine("Options for scan & clean:");
         Console.WriteLine("  --category <name>     Filter by category (System, Developer, Browser, Application)");
         Console.WriteLine("  --rule <id>           Run specific rule (e.g. sys.temp.user)");
@@ -239,6 +245,102 @@ public static class Program
                 Truncate(child.Name, 30), FormatBytes(child.TotalSizeBytes), child.FileCount);
         }
 
+        return 0;
+    }
+
+    private static int HandleStartup()
+    {
+        var startup = new StartupManagerService();
+        var entries = startup.GetStartupEntries();
+
+        Console.WriteLine($"Found {entries.Count} Windows Startup applications:\n");
+        Console.WriteLine("{0,-24} {1,-18} {2,-8} {3}", "Application Name", "Location", "Exists", "Command / Path");
+        Console.WriteLine(new string('-', 85));
+
+        foreach (var e in entries)
+        {
+            var loc = e.LocationType switch
+            {
+                StartupLocationType.CurrentUserRegistry => "HKCU Run",
+                StartupLocationType.LocalMachineRegistry => "HKLM Run",
+                _ => "Startup Folder"
+            };
+
+            Console.Write("{0,-24} {1,-18} ", Truncate(e.Name, 22), loc);
+            if (e.FileExists)
+            {
+                Console.ForegroundColor = ConsoleColor.Green;
+                Console.Write("{0,-8} ", "Yes");
+            }
+            else
+            {
+                Console.ForegroundColor = ConsoleColor.Red;
+                Console.Write("{0,-8} ", "Dead");
+            }
+            Console.ResetColor();
+            Console.WriteLine(Truncate(e.Command, 32));
+        }
+
+        Console.WriteLine();
+        return 0;
+    }
+
+    private static async Task<int> HandleDuplicatesAsync(string[] args)
+    {
+        var targetDir = args.FirstOrDefault(a => !a.StartsWith('-'));
+        if (string.IsNullOrWhiteSpace(targetDir) || !Directory.Exists(targetDir))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine("Please specify a valid directory to scan for duplicates. Example: cleantool dupes C:\\Users\\Downloads");
+            Console.ResetColor();
+            return 1;
+        }
+
+        Console.WriteLine($"Scanning for duplicate files in: {targetDir}...");
+        var finder = new DuplicateFinderService();
+        var progress = new Progress<string>(msg => Console.WriteLine($"  {msg}"));
+
+        var duplicates = await finder.FindDuplicatesAsync(targetDir, progress: progress);
+
+        long totalReclaimable = duplicates.Sum(d => d.ReclaimableBytes);
+        int totalDuplicateFiles = duplicates.Sum(d => d.FilePaths.Count - 1);
+
+        Console.WriteLine($"\nFound {duplicates.Count} duplicate groups ({totalDuplicateFiles} redundant files, {FormatBytes(totalReclaimable)} reclaimable):\n");
+
+        int groupNum = 1;
+        foreach (var group in duplicates.Take(10))
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"[Group {groupNum++}] File Size: {FormatBytes(group.FileSizeBytes)} | SHA-256: {group.Sha256Hash[..12]}... (Duplicates: {group.FilePaths.Count})");
+            Console.ResetColor();
+            foreach (var path in group.FilePaths)
+            {
+                Console.WriteLine($"  - {path}");
+            }
+            Console.WriteLine();
+        }
+
+        if (duplicates.Count > 10)
+        {
+            Console.WriteLine($"... and {duplicates.Count - 10} more duplicate groups.\n");
+        }
+
+        return 0;
+    }
+
+    private static async Task<int> HandleMemoryAsync()
+    {
+        Console.WriteLine("Trimming background process working sets (EmptyWorkingSet)...");
+        var memService = new MemoryOptimizerService();
+        var result = await memService.OptimizeWorkingSetsAsync();
+
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"Optimized {result.ProcessesOptimized} running processes.");
+        Console.WriteLine($"Initial Working Set: {FormatBytes(result.InitialWorkingSetBytes)}");
+        Console.WriteLine($"Final Working Set:   {FormatBytes(result.FinalWorkingSetBytes)}");
+        Console.WriteLine($"Memory Reclaimed:    {FormatBytes(result.ReclaimedBytes)}");
+        Console.ResetColor();
+        Console.WriteLine();
         return 0;
     }
 
