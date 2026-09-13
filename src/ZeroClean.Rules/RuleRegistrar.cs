@@ -21,6 +21,7 @@ public static class RuleRegistrar
         registry.Register(new CrashDumpsRule());
         registry.Register(new ThumbnailCacheRule());
         registry.Register(new WindowsErrorReportingRule());
+        registry.Register(new WindowsUpdateDownloadRule());
         registry.Register(new RecycleBinRule());
         registry.Register(new BrokenShortcutRule());
 
@@ -28,6 +29,7 @@ public static class RuleRegistrar
         registry.Register(new NuGetCacheRule());
         registry.Register(new NpmCacheRule());
         registry.Register(new PipCacheRule());
+        registry.Register(new CargoCacheRule());
         registry.Register(new GoBuildCacheRule());
         registry.Register(new AiModelCacheRule());
         registry.Register(new VisualStudioArtifactsRule());
