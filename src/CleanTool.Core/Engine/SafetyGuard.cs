@@ -16,7 +16,26 @@ public class SafetyGuard : ISafetyGuard
         "bootmgr",
         "BOOTNXT",
         "ntuser.dat",
-        "desktop.ini"
+        "desktop.ini",
+        ".env",
+        ".env.local",
+        ".env.development",
+        ".env.production",
+        ".env.test",
+        "id_rsa",
+        "id_rsa.pub",
+        "id_ed25519",
+        "id_ed25519.pub",
+        "known_hosts",
+        "authorized_keys"
+    };
+
+    private static readonly string[] ProtectedExtensions =
+    {
+        ".key",
+        ".pem",
+        ".pfx",
+        ".p12"
     };
 
     private static readonly string[] ProtectedDirectories =
@@ -50,6 +69,19 @@ public class SafetyGuard : ISafetyGuard
         var fileName = Path.GetFileName(fullPath);
         if (ProtectedSystemFiles.Contains(fileName))
             return true;
+
+        var ext = Path.GetExtension(fullPath);
+        if (!string.IsNullOrEmpty(ext) && ProtectedExtensions.Contains(ext, StringComparer.OrdinalIgnoreCase))
+            return true;
+
+        // Disallow touching inside .git database directory
+        var sep = Path.DirectorySeparatorChar;
+        var altSep = Path.AltDirectorySeparatorChar;
+        if (fullPath.Contains($"{sep}.git{sep}") || fullPath.Contains($"{altSep}.git{altSep}") ||
+            fullPath.EndsWith($"{sep}.git") || fullPath.EndsWith($"{altSep}.git"))
+        {
+            return true;
+        }
 
         foreach (var protectedDir in ProtectedDirectories)
         {

@@ -38,6 +38,7 @@ public static class Program
                 "startup" => HandleStartup(),
                 "dupes" => await HandleDuplicatesAsync(cmdArgs),
                 "mem" => await HandleMemoryAsync(),
+                "dev" or "workspaces" => await HandleDevWorkspacesAsync(cmdArgs),
                 _ => HandleUnknownCommand(command)
             };
         }
@@ -75,13 +76,15 @@ public static class Program
         Console.WriteLine("  analyze [path]        Inspect disk storage usage and directory hierarchy");
         Console.WriteLine("  startup               Inspect Windows startup programs (Registry & Folder)");
         Console.WriteLine("  dupes <folder>        Scan for duplicate files (3-stage SHA-256 analysis)");
-        Console.WriteLine("  mem                   Trim process memory working sets\n");
+        Console.WriteLine("  mem                   Trim process memory working sets");
+        Console.WriteLine("  dev [path]            Scan dev workspaces for dormant repos & bloated build artifacts\n");
         Console.WriteLine("Options for scan & clean:");
         Console.WriteLine("  --category <name>     Filter by category (System, Developer, Browser, Application)");
         Console.WriteLine("  --rule <id>           Run specific rule (e.g. sys.temp.user)");
         Console.WriteLine("  --execute             Actually delete files (disables safe Dry-Run mode)");
         Console.WriteLine("  --all                 Include disabled-by-default rules (e.g. Recycle Bin, NuGet)");
         Console.WriteLine("  --min-age-hours <n>   Only clean files older than N hours (default: 24)");
+        Console.WriteLine("  --dormant-days <n>    Days of inactivity to classify as dormant repo (default: 30)");
     }
 
     private static int HandleListRules(IRuleRegistry registry)
@@ -339,6 +342,97 @@ public static class Program
         Console.WriteLine($"Initial Working Set: {FormatBytes(result.InitialWorkingSetBytes)}");
         Console.WriteLine($"Final Working Set:   {FormatBytes(result.FinalWorkingSetBytes)}");
         Console.WriteLine($"Memory Reclaimed:    {FormatBytes(result.ReclaimedBytes)}");
+        Console.ResetColor();
+        Console.WriteLine();
+        return 0;
+    }
+
+    private static async Task<int> HandleDevWorkspacesAsync(string[] args)
+    {
+        string targetDir = args.FirstOrDefault(a => !a.StartsWith('-')) ?? Directory.GetCurrentDirectory();
+        int dormantDays = 30;
+
+        for (int i = 0; i < args.Length; i++)
+        {
+            if (args[i].Equals("--dormant-days", StringComparison.OrdinalIgnoreCase) && i + 1 < args.Length && int.TryParse(args[i + 1], out var d))
+            {
+                dormantDays = d;
+            }
+        }
+
+        if (!Directory.Exists(targetDir))
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine($"Directory does not exist: {targetDir}");
+            Console.ResetColor();
+            return 1;
+        }
+
+        Console.ForegroundColor = ConsoleColor.Cyan;
+        Console.WriteLine($"Scanning developer workspaces in: {targetDir} (Dormant threshold: >{dormantDays} days)...\n");
+        Console.ResetColor();
+
+        var devService = new DevWorkspaceService();
+        var progress = new Progress<string>(msg => Console.WriteLine($"  {msg}"));
+
+        var repos = await devService.ScanWorkspacesAsync(targetDir, dormantDaysThreshold: dormantDays, progress: progress);
+
+        if (repos.Count == 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Green;
+            Console.WriteLine("\nNo developer build artifacts found in this workspace.");
+            Console.ResetColor();
+            return 0;
+        }
+
+        Console.WriteLine("\n{0,-24} {1,-14} {2,-12} {3,12} {4}", "Repository", "State", "Activity", "Reclaimable", "Artifacts");
+        Console.WriteLine(new string('-', 85));
+
+        long grandTotal = 0;
+        int dormantCount = 0;
+        long dormantReclaimable = 0;
+
+        foreach (var r in repos)
+        {
+            grandTotal += r.TotalReclaimableBytes;
+
+            Console.Write("{0,-24} ", Truncate(r.RepoName, 22));
+
+            switch (r.State)
+            {
+                case DevRepoState.Dormant:
+                    Console.ForegroundColor = ConsoleColor.Yellow;
+                    Console.Write("{0,-14} ", "Dormant");
+                    dormantCount++;
+                    dormantReclaimable += r.TotalReclaimableBytes;
+                    break;
+                case DevRepoState.DirtyWorktree:
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.Write("{0,-14} ", "Dirty (Safe)");
+                    break;
+                default:
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.Write("{0,-14} ", "Active");
+                    break;
+            }
+            Console.ResetColor();
+
+            var daysAgo = (int)(DateTime.Now - r.LastActivityTime).TotalDays;
+            Console.Write("{0,-12} ", daysAgo == 0 ? "Today" : $"{daysAgo}d ago");
+            Console.Write("{0,12} ", FormatBytes(r.TotalReclaimableBytes));
+
+            var artifactSummary = string.Join(", ", r.Artifacts.Select(a => $"{a.ArtifactType}: {FormatBytes(a.SizeBytes)}"));
+            Console.WriteLine(Truncate(artifactSummary, 32));
+        }
+
+        Console.WriteLine(new string('=', 85));
+        Console.ForegroundColor = ConsoleColor.Green;
+        Console.WriteLine($"Found {repos.Count} repositories with build artifacts ({FormatBytes(grandTotal)} total).");
+        if (dormantCount > 0)
+        {
+            Console.ForegroundColor = ConsoleColor.Yellow;
+            Console.WriteLine($"💡 {dormantCount} repos are Dormant (> {dormantDays} days inactive) with {FormatBytes(dormantReclaimable)} safe to purge.");
+        }
         Console.ResetColor();
         Console.WriteLine();
         return 0;

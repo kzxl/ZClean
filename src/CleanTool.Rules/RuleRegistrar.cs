@@ -29,6 +29,8 @@ public static class RuleRegistrar
         registry.Register(new NpmCacheRule());
         registry.Register(new PipCacheRule());
         registry.Register(new GoBuildCacheRule());
+        registry.Register(new AiModelCacheRule());
+        registry.Register(new VisualStudioArtifactsRule());
 
         // Browser rules
         registry.Register(new ChromiumCacheRule());
