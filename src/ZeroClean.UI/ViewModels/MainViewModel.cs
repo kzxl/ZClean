@@ -46,6 +46,34 @@ public class MainViewModel : ViewModelBase
     public ObservableCollection<InstalledAppInfo> FilteredApps { get; } = new();
     public ObservableCollection<AppLeftoverFolder> LeftoverFolders { get; } = new();
 
+    private readonly LargeFileScannerService _largeFileService = new();
+    private readonly DismComponentService _dismService = new();
+    private readonly DockerWslService _dockerWslService = new();
+
+    public ObservableCollection<LargeFileInfo> LargeFiles { get; } = new();
+    public ObservableCollection<WslVdiskInfo> WslDisks { get; } = new();
+
+    private DismAnalysisReport? _dismReport;
+    public DismAnalysisReport? DismReport
+    {
+        get => _dismReport;
+        set => SetProperty(ref _dismReport, value);
+    }
+
+    private string _activeSectionTitle = "⚡ System Cleaner";
+    public string ActiveSectionTitle
+    {
+        get => _activeSectionTitle;
+        set => SetProperty(ref _activeSectionTitle, value);
+    }
+
+    private string _activeSectionSubtitle = "Fast temporary files, browser history, crash dumps & package cache sweeping.";
+    public string ActiveSectionSubtitle
+    {
+        get => _activeSectionSubtitle;
+        set => SetProperty(ref _activeSectionSubtitle, value);
+    }
+
     public RelayCommand ScanCommand { get; }
     public RelayCommand SimulateCleanCommand { get; }
     public RelayCommand LiveCleanCommand { get; }
@@ -59,6 +87,9 @@ public class MainViewModel : ViewModelBase
     public RelayCommand SimulateUninstallAppCommand { get; }
     public RelayCommand LiveUninstallAppCommand { get; }
     public RelayCommand LoadLeftoversCommand { get; }
+    public RelayCommand ScanLargeFilesCommand { get; }
+    public RelayCommand ScanWslDisksCommand { get; }
+    public RelayCommand AnalyzeDismCommand { get; }
 
     public MainViewModel()
     {
@@ -96,6 +127,10 @@ public class MainViewModel : ViewModelBase
         SimulateUninstallAppCommand = new RelayCommand(async () => await ExecuteSimulateUninstallAsync(), () => !IsBusy && SelectedApp != null);
         LiveUninstallAppCommand = new RelayCommand(async () => await ExecuteLiveUninstallAsync(), () => !IsBusy && SelectedApp != null);
         LoadLeftoversCommand = new RelayCommand(ExecuteLoadLeftovers, () => !IsBusy);
+
+        ScanLargeFilesCommand = new RelayCommand(async () => await ExecuteScanLargeFilesAsync(), () => !IsBusy);
+        ScanWslDisksCommand = new RelayCommand(async () => await ExecuteScanWslDisksAsync(), () => !IsBusy);
+        AnalyzeDismCommand = new RelayCommand(async () => await ExecuteAnalyzeDismAsync(), () => !IsBusy);
 
         LoadDrives();
         UpdateTotals();
@@ -641,6 +676,85 @@ public class MainViewModel : ViewModelBase
         InfoBarMessage = message;
         InfoBarSeverity = severity;
         IsInfoBarVisible = true;
+    }
+
+    private async Task ExecuteScanLargeFilesAsync()
+    {
+        IsBusy = true;
+        StatusMessage = "Hunting for heavy space hogs (> 100MB)...";
+        try
+        {
+            LargeFiles.Clear();
+            var userDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            var results = await _largeFileService.ScanLargeFilesAsync(userDir, 100 * 1024 * 1024, 50);
+            foreach (var f in results)
+            {
+                LargeFiles.Add(f);
+            }
+            StatusMessage = $"Discovered {LargeFiles.Count} large space hogs in user profile.";
+            ShowInfoBar($"Found {LargeFiles.Count} large files (> 100MB) in your user directory.", "Info");
+        }
+        catch (Exception ex)
+        {
+            ShowInfoBar($"Large files scan error: {ex.Message}", "Error");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task ExecuteScanWslDisksAsync()
+    {
+        IsBusy = true;
+        StatusMessage = "Discovering WSL2 & Docker virtual disks (ext4.vhdx)...";
+        try
+        {
+            WslDisks.Clear();
+            var disks = await _dockerWslService.DiscoverWslVdisksAsync();
+            foreach (var d in disks)
+            {
+                WslDisks.Add(d);
+            }
+            StatusMessage = WslDisks.Count > 0 
+                ? $"Found {WslDisks.Count} WSL2/Docker virtual disk(s)." 
+                : "No WSL2 or Docker ext4.vhdx virtual disks detected.";
+            ShowInfoBar(WslDisks.Count > 0 
+                ? $"Detected {WslDisks.Count} virtual disk(s) available for diskpart compaction."
+                : "No virtual disks found in default locations.", "Info");
+        }
+        catch (Exception ex)
+        {
+            ShowInfoBar($"WSL discovery error: {ex.Message}", "Error");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task ExecuteAnalyzeDismAsync()
+    {
+        IsBusy = true;
+        StatusMessage = "Analyzing Windows Component Store (WinSxS) via DISM...";
+        try
+        {
+            DismReport = await _dismService.AnalyzeComponentStoreAsync();
+            StatusMessage = DismReport.IsCleanupRecommended 
+                ? "WinSxS Component Store cleanup is RECOMMENDED." 
+                : "WinSxS Component Store analysis completed.";
+            ShowInfoBar(DismReport.IsCleanupRecommended
+                ? "WinSxS cleanup recommended! Superseded packages detected."
+                : "Component store analysis finished. Store is clean.", "Success");
+        }
+        catch (Exception ex)
+        {
+            ShowInfoBar($"DISM analysis error: {ex.Message}", "Error");
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     public static string FormatBytes(long bytes)
