@@ -10,6 +10,7 @@
         xmlns:nav="clr-namespace:ZeroUI.Wpf.Navigation;assembly=ZeroUI.Wpf"
         xmlns:edit="clr-namespace:ZeroUI.Wpf.Editors;assembly=ZeroUI.Wpf"
         Title="ZeroClean — Sovereign Zero Universe System Optimizer" 
+        Icon="app.ico"
         Height="800" Width="1200" MinHeight="550" MinWidth="880"
         WindowStartupLocation="CenterScreen"
         Background="{DynamicResource BgDarkBrush}"

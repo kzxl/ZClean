@@ -5,7 +5,13 @@
     <RootNamespace>ZeroClean.UI</RootNamespace>
     <AssemblyName>ZeroClean</AssemblyName>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>app.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="app.ico" />
+    <Resource Include="app.png" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\ZeroClean.Core\ZeroClean.Core.csproj" />
