@@ -51,56 +51,62 @@
         <Border Grid.Row="1" Background="{StaticResource BgCardBrush}"
                 BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1"
                 CornerRadius="8" Padding="8">
-            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-                <ItemsControl ItemsSource="{Binding Rules}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border Margin="4" Padding="12,10" CornerRadius="6"
-                                    Background="{StaticResource BgInputBrush}"
-                                    BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
+            <ListBox ItemsSource="{Binding Rules}"
+                     Background="Transparent" BorderThickness="0"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                     VirtualizingPanel.IsVirtualizing="True"
+                     VirtualizingPanel.VirtualizationMode="Recycling"
+                     VirtualizingPanel.ScrollUnit="Pixel"
+                     ScrollViewer.CanContentScroll="True"
+                     TextOptions.TextFormattingMode="Display"
+                     RenderOptions.ClearTypeHint="Enabled">
+                <ListBox.ItemTemplate>
+                    <DataTemplate>
+                        <Border Margin="0,2,0,2" Padding="12,10" CornerRadius="6"
+                                Background="{StaticResource BgInputBrush}"
+                                BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto"/>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
 
-                                    <!-- ZeroUI CheckEdit Control -->
-                                    <edit:CheckEdit IsChecked="{Binding IsSelected, Mode=TwoWay}" 
-                                                    BoxSize="18" Text=""
-                                                    VerticalAlignment="Center"/>
+                                <!-- ZeroUI CheckEdit Control -->
+                                <edit:CheckEdit IsChecked="{Binding IsSelected, Mode=TwoWay}" 
+                                                BoxSize="18" Text=""
+                                                VerticalAlignment="Center"/>
 
-                                    <!-- Rule Details -->
-                                    <StackPanel Grid.Column="1" Margin="10,0,0,0">
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextPrimaryBrush}" 
-                                                       FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
+                                <!-- Rule Details -->
+                                <StackPanel Grid.Column="1" Margin="10,0,0,0">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Name}" Foreground="{StaticResource TextPrimaryBrush}" 
+                                                   FontWeight="SemiBold" FontSize="13" VerticalAlignment="Center"/>
 
-                                            <!-- Category Badge -->
-                                            <feed:ZeroBadge BadgeText="{Binding Category}" Status="Accent" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                                        <!-- Category Badge -->
+                                        <feed:ZeroBadge BadgeText="{Binding Category}" Status="Accent" Margin="10,0,0,0" VerticalAlignment="Center"/>
 
-                                            <!-- Risk Badge -->
-                                            <feed:ZeroBadge BadgeText="{Binding RiskLevel}" Status="Online" Margin="6,0,0,0" VerticalAlignment="Center"/>
-                                        </StackPanel>
-
-                                        <TextBlock Text="{Binding Description}" Foreground="{StaticResource TextSecondaryBrush}" 
-                                                   FontSize="11.5" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                        <!-- Risk Badge -->
+                                        <feed:ZeroBadge BadgeText="{Binding RiskLevel}" Status="Online" Margin="6,0,0,0" VerticalAlignment="Center"/>
                                     </StackPanel>
 
-                                    <!-- Scanned Size / Status -->
-                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="10,0,0,0">
-                                        <TextBlock Text="{Binding ScannedSize, Converter={StaticResource BytesConverter}}" 
-                                                   Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" 
-                                                   FontSize="13" HorizontalAlignment="Right"/>
-                                        <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource TextMutedBrush}" 
-                                                   FontSize="11" HorizontalAlignment="Right" Margin="0,2,0,0"/>
-                                    </StackPanel>
-                                </Grid>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
+                                    <TextBlock Text="{Binding Description}" Foreground="{StaticResource TextSecondaryBrush}" 
+                                               FontSize="11.5" Margin="0,4,0,0" TextWrapping="Wrap"/>
+                                </StackPanel>
+
+                                <!-- Scanned Size / Status -->
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="10,0,0,0">
+                                    <TextBlock Text="{Binding ScannedSize, Converter={StaticResource BytesConverter}}" 
+                                               Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" 
+                                               FontSize="13" HorizontalAlignment="Right"/>
+                                    <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource TextMutedBrush}" 
+                                               FontSize="11" HorizontalAlignment="Right" Margin="0,2,0,0"/>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
         </Border>
 
         <!-- Bottom Action Bar & Progress -->

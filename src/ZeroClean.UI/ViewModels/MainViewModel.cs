@@ -52,15 +52,15 @@ public class MainViewModel : ViewModelBase
     public ObservableCollection<DiskDriveViewModel> Drives { get; } = new();
     public ObservableCollection<CleanRecommendation> Recommendations { get; } = new();
     public ObservableCollection<string> IssuesDetected { get; } = new();
-    public ObservableCollection<InstalledAppInfo> InstalledApps { get; } = new();
-    public ObservableCollection<InstalledAppInfo> FilteredApps { get; } = new();
-    public ObservableCollection<AppLeftoverFolder> LeftoverFolders { get; } = new();
+    public ObservableRangeCollection<InstalledAppInfo> InstalledApps { get; } = new();
+    public ObservableRangeCollection<InstalledAppInfo> FilteredApps { get; } = new();
+    public ObservableRangeCollection<AppLeftoverFolder> LeftoverFolders { get; } = new();
 
     private readonly LargeFileScannerService _largeFileService = new();
     private readonly DismComponentService _dismService = new();
     private readonly DockerWslService _dockerWslService = new();
 
-    public ObservableCollection<LargeFileInfo> LargeFiles { get; } = new();
+    public ObservableRangeCollection<LargeFileInfo> LargeFiles { get; } = new();
     public ObservableCollection<WslVdiskInfo> WslDisks { get; } = new();
 
     private DismAnalysisReport? _dismReport;
@@ -614,21 +614,12 @@ public class MainViewModel : ViewModelBase
             var (apps, leftovers) = await Task.Run(() =>
             {
                 var scannedApps = _uninstallerService.GetInstalledApplications();
-                var scannedLeftovers = _uninstallerService.DetectLeftoverFolders();
+                var scannedLeftovers = _uninstallerService.DetectLeftoverFolders(existingApps: scannedApps);
                 return (scannedApps, scannedLeftovers);
             });
 
-            InstalledApps.Clear();
-            foreach (var app in apps)
-            {
-                InstalledApps.Add(app);
-            }
-
-            LeftoverFolders.Clear();
-            foreach (var leftover in leftovers)
-            {
-                LeftoverFolders.Add(leftover);
-            }
+            InstalledApps.ReplaceRange(apps);
+            LeftoverFolders.ReplaceRange(leftovers);
 
             TotalAppsCount = InstalledApps.Count;
             TotalAppsSize = InstalledApps.Sum(a => a.EstimatedSizeBytes);
@@ -654,7 +645,6 @@ public class MainViewModel : ViewModelBase
 
     public void ApplyAppFilter()
     {
-        FilteredApps.Clear();
         var q = InstalledApps.AsEnumerable();
 
         if (!string.IsNullOrWhiteSpace(SearchAppText))
@@ -672,10 +662,8 @@ public class MainViewModel : ViewModelBase
             q = q.Where(a => a.IsBroken);
         }
 
-        foreach (var a in q.OrderByDescending(a => a.EstimatedSizeBytes))
-        {
-            FilteredApps.Add(a);
-        }
+        var results = q.OrderByDescending(a => a.EstimatedSizeBytes).ToList();
+        FilteredApps.ReplaceRange(results);
     }
 
     public void ExecuteScanSelectedAppResiduals()
@@ -775,12 +763,9 @@ public class MainViewModel : ViewModelBase
 
         try
         {
-            var list = await Task.Run(() => _uninstallerService.DetectLeftoverFolders());
-            LeftoverFolders.Clear();
-            foreach (var item in list)
-            {
-                LeftoverFolders.Add(item);
-            }
+            var appsCache = InstalledApps.Count > 0 ? InstalledApps.ToList() : null;
+            var list = await Task.Run(() => _uninstallerService.DetectLeftoverFolders(existingApps: appsCache));
+            LeftoverFolders.ReplaceRange(list);
 
             TotalLeftoverCount = LeftoverFolders.Count;
             TotalLeftoverSize = LeftoverFolders.Sum(l => l.EstimatedSizeBytes);
@@ -894,13 +879,9 @@ public class MainViewModel : ViewModelBase
         StatusMessage = "Hunting for heavy space hogs (> 100MB)...";
         try
         {
-            LargeFiles.Clear();
             var userDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var results = await _largeFileService.ScanLargeFilesAsync(userDir, 100 * 1024 * 1024, 50);
-            foreach (var f in results)
-            {
-                LargeFiles.Add(f);
-            }
+            LargeFiles.ReplaceRange(results);
             StatusMessage = $"Discovered {LargeFiles.Count} large space hogs in user profile.";
             ShowInfoBar($"Found {LargeFiles.Count} large files (> 100MB) in your user directory.", "Info");
         }

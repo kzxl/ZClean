@@ -223,10 +223,16 @@
                     BorderBrush="{StaticResource BorderDefaultBrush}" BorderThickness="1"
                     CornerRadius="8" Padding="8" Margin="0,0,8,0">
                 <Grid>
-                    <!-- Actual Software ListBox -->
+                    <!-- Actual Software ListBox with Virtualization Enabled -->
                     <ListBox ItemsSource="{Binding FilteredApps}" SelectedItem="{Binding SelectedApp}"
                              Background="Transparent" BorderThickness="0"
-                             ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             VirtualizingPanel.IsVirtualizing="True"
+                             VirtualizingPanel.VirtualizationMode="Recycling"
+                             VirtualizingPanel.ScrollUnit="Pixel"
+                             ScrollViewer.CanContentScroll="True"
+                             TextOptions.TextFormattingMode="Display"
+                             RenderOptions.ClearTypeHint="Enabled">
                         <ListBox.ItemTemplate>
                             <DataTemplate>
                                 <Border Margin="0,2,0,2" Padding="10,8" CornerRadius="6"

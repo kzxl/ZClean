@@ -77,39 +77,45 @@
                         <TextBlock Grid.Column="1" Text="User Profile Scope" Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center"/>
                     </Grid>
 
-                    <!-- Large Files List -->
-                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-                        <ItemsControl ItemsSource="{Binding LargeFiles}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Margin="0,0,0,6" Padding="10,8" CornerRadius="6"
-                                            Background="{StaticResource BgInputBrush}"
-                                            BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
+                    <!-- Large Files Virtualized List -->
+                    <ListBox Grid.Row="1" ItemsSource="{Binding LargeFiles}"
+                             Background="Transparent" BorderThickness="0"
+                             ScrollViewer.HorizontalScrollBarVisibility="Disabled"
+                             VirtualizingPanel.IsVirtualizing="True"
+                             VirtualizingPanel.VirtualizationMode="Recycling"
+                             VirtualizingPanel.ScrollUnit="Pixel"
+                             ScrollViewer.CanContentScroll="True"
+                             TextOptions.TextFormattingMode="Display"
+                             RenderOptions.ClearTypeHint="Enabled">
+                        <ListBox.ItemTemplate>
+                            <DataTemplate>
+                                <Border Margin="0,0,0,6" Padding="10,8" CornerRadius="6"
+                                        Background="{StaticResource BgInputBrush}"
+                                        BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1">
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
 
-                                            <StackPanel VerticalAlignment="Center">
-                                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding FileName}" Foreground="{StaticResource TextPrimaryBrush}"
-                                                               FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="320"/>
-                                                    <feed:ZeroBadge BadgeText="{Binding Category}" Status="Accent" Margin="8,0,0,0" VerticalAlignment="Center"/>
-                                                </StackPanel>
-                                                <TextBlock Text="{Binding FullPath}" Foreground="{StaticResource TextMutedBrush}" 
-                                                           FontSize="10.5" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" MaxWidth="360"/>
+                                        <StackPanel VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding FileName}" Foreground="{StaticResource TextPrimaryBrush}"
+                                                           FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="320"/>
+                                                <feed:ZeroBadge BadgeText="{Binding Category}" Status="Accent" Margin="8,0,0,0" VerticalAlignment="Center"/>
                                             </StackPanel>
+                                            <TextBlock Text="{Binding FullPath}" Foreground="{StaticResource TextMutedBrush}" 
+                                                       FontSize="10.5" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" MaxWidth="360"/>
+                                        </StackPanel>
 
-                                            <TextBlock Grid.Column="1" Text="{Binding SizeBytes, Converter={StaticResource BytesConverter}}"
-                                                       Foreground="{StaticResource PrimaryAccentBrush}" FontWeight="Bold" 
-                                                       FontSize="12.5" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,0,0"/>
-                                        </Grid>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-                    </ScrollViewer>
+                                        <TextBlock Grid.Column="1" Text="{Binding SizeBytes, Converter={StaticResource BytesConverter}}"
+                                                   Foreground="{StaticResource PrimaryAccentBrush}" FontWeight="Bold" 
+                                                   FontSize="12.5" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,0,0"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ListBox.ItemTemplate>
+                    </ListBox>
                 </Grid>
             </Border>
 

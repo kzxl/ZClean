@@ -101,9 +101,11 @@ public class AppUninstallerService
     /// <summary>
     /// Scans user and system AppData for residual folders of applications no longer present in Windows Uninstall registry.
     /// </summary>
-    public IReadOnlyList<AppLeftoverFolder> DetectLeftoverFolders(IEnumerable<string>? customRoots = null)
+    public IReadOnlyList<AppLeftoverFolder> DetectLeftoverFolders(
+        IEnumerable<string>? customRoots = null,
+        IEnumerable<InstalledAppInfo>? existingApps = null)
     {
-        var installed = GetInstalledApplications();
+        var installed = existingApps ?? GetInstalledApplications();
         var knownNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var app in installed)
@@ -129,7 +131,7 @@ public class AppUninstallerService
             Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData)
         };
 
-        var leftovers = new List<AppLeftoverFolder>();
+        var candidateDirs = new List<(string SubDir, string DirName)>();
 
         foreach (var root in scanRoots)
         {
@@ -149,43 +151,50 @@ public class AppUninstallerService
 
                     if (!isKnown)
                     {
-                        long size = 0;
-                        int count = 0;
-                        try
-                        {
-                            var di = new DirectoryInfo(subDir);
-                            // Fast top-directory size estimation
-                            foreach (var f in di.EnumerateFiles("*", SearchOption.TopDirectoryOnly))
-                            {
-                                try { size += f.Length; count++; } catch { }
-                            }
-
-                            foreach (var child in di.EnumerateDirectories().Take(5))
-                            {
-                                foreach (var f in child.EnumerateFiles("*", SearchOption.TopDirectoryOnly))
-                                {
-                                    try { size += f.Length; count++; } catch { }
-                                }
-                            }
-
-                            if (count > 0)
-                            {
-                                leftovers.Add(new AppLeftoverFolder
-                                {
-                                    FolderPath = subDir,
-                                    FolderName = dirName,
-                                    EstimatedSizeBytes = size,
-                                    FileCount = count,
-                                    LastModified = di.LastWriteTime
-                                });
-                            }
-                        }
-                        catch { }
+                        candidateDirs.Add((subDir, dirName));
                     }
                 }
             }
             catch { }
         }
+
+        var leftovers = new System.Collections.Concurrent.ConcurrentBag<AppLeftoverFolder>();
+
+        Parallel.ForEach(candidateDirs, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount }, candidate =>
+        {
+            long size = 0;
+            int count = 0;
+            try
+            {
+                var di = new DirectoryInfo(candidate.SubDir);
+                // Fast top-directory size estimation
+                foreach (var f in di.EnumerateFiles("*", SearchOption.TopDirectoryOnly))
+                {
+                    try { size += f.Length; count++; } catch { }
+                }
+
+                foreach (var child in di.EnumerateDirectories().Take(5))
+                {
+                    foreach (var f in child.EnumerateFiles("*", SearchOption.TopDirectoryOnly))
+                    {
+                        try { size += f.Length; count++; } catch { }
+                    }
+                }
+
+                if (count > 0)
+                {
+                    leftovers.Add(new AppLeftoverFolder
+                    {
+                        FolderPath = candidate.SubDir,
+                        FolderName = candidate.DirName,
+                        EstimatedSizeBytes = size,
+                        FileCount = count,
+                        LastModified = di.LastWriteTime
+                    });
+                }
+            }
+            catch { }
+        });
 
         return leftovers.OrderByDescending(l => l.EstimatedSizeBytes).ToList();
     }
