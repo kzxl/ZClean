@@ -64,21 +64,42 @@
                         <RowDefinition Height="*"/>
                     </Grid.RowDefinitions>
 
-                    <Grid Grid.Row="0" Margin="2,0,2,10">
+                    <Grid Grid.Row="0" Margin="2,0,2,8">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
+                        </Grid.RowDefinitions>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*"/>
                             <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
-                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+
+                        <!-- Title & Count -->
+                        <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" VerticalAlignment="Center">
                             <TextBlock Text="Large Space Hogs (> 100MB)" Foreground="{StaticResource TextPrimaryBrush}"
                                        FontWeight="Bold" FontSize="13.5" VerticalAlignment="Center"/>
-                            <feed:ZeroBadge Count="{Binding LargeFiles.Count}" Status="Accent" Margin="10,0,0,0" VerticalAlignment="Center"/>
+                            <feed:ZeroBadge Count="{Binding FilteredLargeFiles.Count}" Status="Accent" Margin="10,0,0,0" VerticalAlignment="Center"/>
                         </StackPanel>
-                        <TextBlock Grid.Column="1" Text="User Profile Scope" Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Row="0" Grid.Column="1" Text="User Profile Scope" Foreground="{StaticResource TextMutedBrush}" FontSize="11" VerticalAlignment="Center"/>
+
+                        <!-- Type Filter Pills -->
+                        <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Margin="0,8,0,2" VerticalAlignment="Center">
+                            <TextBlock Text="Type:" Foreground="{StaticResource TextMutedBrush}" FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                            <edit:SimpleButton Content="All" Command="{Binding SelectLargeFileTypeCommand}" CommandParameter="All"
+                                               Variant="Secondary" Height="22" Padding="8,0" Margin="0,0,4,0"/>
+                            <edit:SimpleButton Content="🎬 Media" Command="{Binding SelectLargeFileTypeCommand}" CommandParameter="Media"
+                                               Variant="Secondary" Height="22" Padding="8,0" Margin="0,0,4,0"/>
+                            <edit:SimpleButton Content="💿 Images" Command="{Binding SelectLargeFileTypeCommand}" CommandParameter="DiskImages"
+                                               Variant="Secondary" Height="22" Padding="8,0" Margin="0,0,4,0"/>
+                            <edit:SimpleButton Content="📦 Archives" Command="{Binding SelectLargeFileTypeCommand}" CommandParameter="Archives"
+                                               Variant="Secondary" Height="22" Padding="8,0" Margin="0,0,4,0"/>
+                            <edit:SimpleButton Content="⚙️ Installers" Command="{Binding SelectLargeFileTypeCommand}" CommandParameter="Installers"
+                                               Variant="Secondary" Height="22" Padding="8,0"/>
+                        </StackPanel>
                     </Grid>
 
                     <!-- Large Files Virtualized List -->
-                    <ListBox Grid.Row="1" ItemsSource="{Binding LargeFiles}"
+                    <ListBox Grid.Row="1" ItemsSource="{Binding FilteredLargeFiles}"
                              Background="Transparent" BorderThickness="0"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled"
                              VirtualizingPanel.IsVirtualizing="True"
@@ -96,21 +117,34 @@
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
 
                                         <StackPanel VerticalAlignment="Center">
                                             <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
                                                 <TextBlock Text="{Binding FileName}" Foreground="{StaticResource TextPrimaryBrush}"
-                                                           FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="320"/>
+                                                           FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="260"/>
                                                 <feed:ZeroBadge BadgeText="{Binding Category}" Status="Accent" Margin="8,0,0,0" VerticalAlignment="Center"/>
                                             </StackPanel>
                                             <TextBlock Text="{Binding FullPath}" Foreground="{StaticResource TextMutedBrush}" 
-                                                       FontSize="10.5" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" MaxWidth="360"/>
+                                                       FontSize="10.5" TextTrimming="CharacterEllipsis" Margin="0,2,0,0" MaxWidth="300"/>
                                         </StackPanel>
 
                                         <TextBlock Grid.Column="1" Text="{Binding SizeBytes, Converter={StaticResource BytesConverter}}"
                                                    Foreground="{StaticResource PrimaryAccentBrush}" FontWeight="Bold" 
-                                                   FontSize="12.5" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,0,0"/>
+                                                   FontSize="12.5" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="8,0,10,0"/>
+
+                                        <!-- Direct Item Actions -->
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <edit:SimpleButton Content="📁" ToolTip="Open folder in File Explorer"
+                                                               Command="{Binding DataContext.OpenLargeFileFolderCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                               CommandParameter="{Binding}"
+                                                               Variant="Secondary" Height="26" Width="28" Padding="0" Margin="0,0,4,0"/>
+                                            <edit:SimpleButton Content="🗑️" ToolTip="Delete this large file"
+                                                               Command="{Binding DataContext.DeleteLargeFileCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                               CommandParameter="{Binding}"
+                                                               Variant="Danger" Height="26" Width="28" Padding="0"/>
+                                        </StackPanel>
                                     </Grid>
                                 </Border>
                             </DataTemplate>

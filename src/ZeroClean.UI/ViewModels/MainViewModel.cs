@@ -49,6 +49,7 @@ public class MainViewModel : ViewModelBase
     private string _infoBarSeverity = "Info"; // Info, Success, Warning, Error
 
     public ObservableCollection<RuleItemViewModel> Rules { get; } = new();
+    public ObservableRangeCollection<RuleItemViewModel> FilteredRules { get; } = new();
     public ObservableCollection<DiskDriveViewModel> Drives { get; } = new();
     public ObservableCollection<CleanRecommendation> Recommendations { get; } = new();
     public ObservableCollection<string> IssuesDetected { get; } = new();
@@ -61,7 +62,41 @@ public class MainViewModel : ViewModelBase
     private readonly DockerWslService _dockerWslService = new();
 
     public ObservableRangeCollection<LargeFileInfo> LargeFiles { get; } = new();
+    public ObservableRangeCollection<LargeFileInfo> FilteredLargeFiles { get; } = new();
     public ObservableCollection<WslVdiskInfo> WslDisks { get; } = new();
+
+    private string _selectedRuleCategory = "All";
+    public string SelectedRuleCategory
+    {
+        get => _selectedRuleCategory;
+        set
+        {
+            if (SetProperty(ref _selectedRuleCategory, value))
+            {
+                ApplyRuleCategoryFilter();
+            }
+        }
+    }
+
+    private RuleItemViewModel? _selectedRule;
+    public RuleItemViewModel? SelectedRule
+    {
+        get => _selectedRule;
+        set => SetProperty(ref _selectedRule, value);
+    }
+
+    private string _selectedLargeFileType = "All";
+    public string SelectedLargeFileType
+    {
+        get => _selectedLargeFileType;
+        set
+        {
+            if (SetProperty(ref _selectedLargeFileType, value))
+            {
+                ApplyLargeFileFilter();
+            }
+        }
+    }
 
     private DismAnalysisReport? _dismReport;
     public DismAnalysisReport? DismReport
@@ -104,6 +139,14 @@ public class MainViewModel : ViewModelBase
     public RelayCommand ScanLargeFilesCommand { get; }
     public RelayCommand ScanWslDisksCommand { get; }
     public RelayCommand AnalyzeDismCommand { get; }
+    public RelayCommand<string> ApplyPresetCommand { get; }
+    public RelayCommand<string> SelectRuleCategoryCommand { get; }
+    public RelayCommand<string> SelectLargeFileTypeCommand { get; }
+    public RelayCommand<CleanRecommendation> FixRecommendationCommand { get; }
+    public RelayCommand<LargeFileInfo> OpenLargeFileFolderCommand { get; }
+    public RelayCommand<LargeFileInfo> DeleteLargeFileCommand { get; }
+    public RelayCommand QuickOptimizeCommand { get; }
+    public RelayCommand<object> NavigateTabCommand { get; }
 
     public MainViewModel()
     {
@@ -126,6 +169,7 @@ public class MainViewModel : ViewModelBase
             };
             Rules.Add(vm);
         }
+        ApplyRuleCategoryFilter();
 
         ScanCommand = new RelayCommand(async () => await ExecuteScanAsync(), () => !IsBusy);
         SimulateCleanCommand = new RelayCommand(async () => await ExecuteSimulateCleanAsync(), () => !IsBusy && TotalReclaimableBytes > 0);
@@ -149,6 +193,19 @@ public class MainViewModel : ViewModelBase
         ScanLargeFilesCommand = new RelayCommand(async () => await ExecuteScanLargeFilesAsync(), () => !IsBusy);
         ScanWslDisksCommand = new RelayCommand(async () => await ExecuteScanWslDisksAsync(), () => !IsBusy);
         AnalyzeDismCommand = new RelayCommand(async () => await ExecuteAnalyzeDismAsync(), () => !IsBusy);
+
+        ApplyPresetCommand = new RelayCommand<string>(ApplyRulePreset);
+        SelectRuleCategoryCommand = new RelayCommand<string>(cat => { if (!string.IsNullOrEmpty(cat)) SelectedRuleCategory = cat; });
+        SelectLargeFileTypeCommand = new RelayCommand<string>(type => { if (!string.IsNullOrEmpty(type)) SelectedLargeFileType = type; });
+        FixRecommendationCommand = new RelayCommand<CleanRecommendation>(async rec => await ExecuteFixRecommendationAsync(rec));
+        OpenLargeFileFolderCommand = new RelayCommand<LargeFileInfo>(ExecuteOpenLargeFileFolder);
+        DeleteLargeFileCommand = new RelayCommand<LargeFileInfo>(async file => await ExecuteDeleteLargeFileAsync(file));
+        QuickOptimizeCommand = new RelayCommand(async () => await ExecuteQuickOptimizeAsync(), () => !IsBusy);
+        NavigateTabCommand = new RelayCommand<object>(param =>
+        {
+            if (param is int i) SelectedTabIndex = i;
+            else if (param != null && int.TryParse(param.ToString(), out int parsed)) SelectedTabIndex = parsed;
+        });
 
         LoadDrives();
         UpdateTotals();
@@ -882,6 +939,7 @@ public class MainViewModel : ViewModelBase
             var userDir = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
             var results = await _largeFileService.ScanLargeFilesAsync(userDir, 100 * 1024 * 1024, 50);
             LargeFiles.ReplaceRange(results);
+            ApplyLargeFileFilter();
             StatusMessage = $"Discovered {LargeFiles.Count} large space hogs in user profile.";
             ShowInfoBar($"Found {LargeFiles.Count} large files (> 100MB) in your user directory.", "Info");
         }
@@ -892,6 +950,148 @@ public class MainViewModel : ViewModelBase
         finally
         {
             IsBusy = false;
+        }
+    }
+
+    public void ApplyRuleCategoryFilter()
+    {
+        var q = Rules.AsEnumerable();
+        if (SelectedRuleCategory == "System")
+            q = q.Where(r => r.Category == CleanCategory.System || r.Category == CleanCategory.DeepSystem);
+        else if (SelectedRuleCategory == "Browsers")
+            q = q.Where(r => r.Category == CleanCategory.Browser);
+        else if (SelectedRuleCategory == "Development")
+            q = q.Where(r => r.Category == CleanCategory.Developer);
+
+        FilteredRules.ReplaceRange(q);
+    }
+
+    public void ApplyRulePreset(string? preset)
+    {
+        if (string.IsNullOrWhiteSpace(preset)) return;
+
+        foreach (var rule in Rules)
+        {
+            if (preset == "Safe")
+            {
+                rule.IsSelected = rule.RiskLevel == CleanRiskLevel.Safe;
+            }
+            else if (preset == "Dev")
+            {
+                rule.IsSelected = rule.Category == CleanCategory.Developer;
+            }
+            else if (preset == "All")
+            {
+                rule.IsSelected = true;
+            }
+        }
+        UpdateTotals();
+        ShowInfoBar($"Applied '{preset}' preset. {Rules.Count(r => r.IsSelected)} cleanup categories selected.", "Info");
+    }
+
+    public async Task ExecuteFixRecommendationAsync(CleanRecommendation? rec)
+    {
+        if (rec == null) return;
+
+        var result = MessageBox.Show(
+            $"⚡ QUICK REMEDY CONFIRMATION:\n\nRecommendation: {rec.Title}\nAction: {rec.Description}\nPotential Savings: {FormatBytes(rec.EstimatedSavingsBytes)}\n\nDo you want ZeroClean to scan and resolve this issue now?",
+            "Apply Health Recommendation",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        foreach (var r in Rules)
+        {
+            if (rec.ActionCategory.Contains("Dev", StringComparison.OrdinalIgnoreCase))
+                r.IsSelected = r.Category == CleanCategory.Developer;
+            else if (rec.ActionCategory.Contains("Browser", StringComparison.OrdinalIgnoreCase))
+                r.IsSelected = r.Category == CleanCategory.Browser;
+            else
+                r.IsSelected = r.RiskLevel == CleanRiskLevel.Safe;
+        }
+
+        await ExecuteScanAsync();
+        if (TotalReclaimableBytes > 0)
+        {
+            await ExecuteLiveCleanAsync();
+        }
+        await ExecuteAdvisorAsync();
+    }
+
+    public void ApplyLargeFileFilter()
+    {
+        var q = LargeFiles.AsEnumerable();
+        if (SelectedLargeFileType == "Media")
+        {
+            var exts = new HashSet<string>(new[] { ".mp4", ".mkv", ".avi", ".mov", ".wmv", ".flv", ".mp3", ".wav" }, StringComparer.OrdinalIgnoreCase);
+            q = q.Where(f => exts.Contains(System.IO.Path.GetExtension(f.FullPath)));
+        }
+        else if (SelectedLargeFileType == "DiskImages")
+        {
+            var exts = new HashSet<string>(new[] { ".iso", ".vhd", ".vhdx", ".vmdk", ".img" }, StringComparer.OrdinalIgnoreCase);
+            q = q.Where(f => exts.Contains(System.IO.Path.GetExtension(f.FullPath)));
+        }
+        else if (SelectedLargeFileType == "Archives")
+        {
+            var exts = new HashSet<string>(new[] { ".zip", ".rar", ".7z", ".tar", ".gz" }, StringComparer.OrdinalIgnoreCase);
+            q = q.Where(f => exts.Contains(System.IO.Path.GetExtension(f.FullPath)));
+        }
+        else if (SelectedLargeFileType == "Installers")
+        {
+            var exts = new HashSet<string>(new[] { ".exe", ".msi" }, StringComparer.OrdinalIgnoreCase);
+            q = q.Where(f => exts.Contains(System.IO.Path.GetExtension(f.FullPath)));
+        }
+
+        FilteredLargeFiles.ReplaceRange(q);
+    }
+
+    public void ExecuteOpenLargeFileFolder(LargeFileInfo? file)
+    {
+        if (file == null || !System.IO.File.Exists(file.FullPath)) return;
+        try
+        {
+            System.Diagnostics.Process.Start("explorer.exe", $"/select,\"{file.FullPath}\"");
+        }
+        catch { }
+    }
+
+    public async Task ExecuteDeleteLargeFileAsync(LargeFileInfo? file)
+    {
+        if (file == null || !System.IO.File.Exists(file.FullPath)) return;
+
+        var res = MessageBox.Show(
+            $"⚠️ PERMANENT LARGE FILE DELETION:\n\nAre you sure you want to permanently delete:\n'{file.FullPath}'\n({FormatBytes(file.SizeBytes)})?\n\nThis deletion cannot be undone!",
+            "Confirm Large File Deletion",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+
+        if (res != MessageBoxResult.Yes) return;
+
+        try
+        {
+            await Task.Run(() => System.IO.File.Delete(file.FullPath));
+            LargeFiles.Remove(file);
+            ApplyLargeFileFilter();
+            ShowInfoBar($"Deleted '{file.FileName}' ({FormatBytes(file.SizeBytes)} reclaimed).", "Success");
+        }
+        catch (Exception ex)
+        {
+            ShowInfoBar($"Failed to delete file: {ex.Message}", "Error");
+        }
+    }
+
+    public async Task ExecuteQuickOptimizeAsync()
+    {
+        ApplyRulePreset("Safe");
+        await ExecuteScanAsync();
+        if (TotalReclaimableBytes > 0)
+        {
+            await ExecuteLiveCleanAsync();
+        }
+        else
+        {
+            ShowInfoBar("System is already in pristine condition. No clutter found.", "Success");
         }
     }
 
