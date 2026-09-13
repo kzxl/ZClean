@@ -1,4 +1,4 @@
-# 🌌 CleanTool — Modern System Optimizer & Cleaner
+# 🌌 ZeroClean — Modern System Optimizer & Cleaner
 
 <p align="center">
   <strong>High-performance, modular system & developer workspace cleaner</strong><br/>
@@ -9,15 +9,15 @@
 
 ## 📖 Overview
 
-**CleanTool** is a modern disk maintenance and system cleanup utility engineered for developer workstations and power users. It decouples cleanup rules into autonomous, self-registering plugins while providing a premium Fluent Dark UI and headless CLI capabilities.
+**ZeroClean** is a modern disk maintenance and system cleanup utility engineered for developer workstations and power users. Part of the sovereign **ZeroUniverse** application suite, it decouples cleanup rules into autonomous, self-registering plugins while providing a premium Fluent Dark UI and headless CLI capabilities.
 
 | Component | Tech Stack | Role |
 | :--- | :--- | :--- |
-| **CleanTool.Core** | C# .NET 8 (netstandard / net8.0) | Scan engine, rule registry, safety barrier, file lock probing, disk analyzer |
-| **CleanTool.Rules** | C# .NET 8 | Autonomous cleanup plugins (System, Developer, Browsers, Applications) |
-| **CleanTool.Cli** | C# .NET 8 Console | Headless command-line runner for automation, CI/CD, and scheduled maintenance |
-| **CleanTool.UI** | C# WPF .NET 8-windows | Modern Fluent Dark desktop interface with Live In-Window notifications |
-| **CleanTool.Tests** | xUnit .NET 8 | Unit test suite verifying protection guards, exclusions, and rules |
+| **ZeroClean.Core** | C# .NET 8 (netstandard / net8.0) | Scan engine, rule registry, safety barrier, file lock probing, disk analyzer |
+| **ZeroClean.Rules** | C# .NET 8 | Autonomous cleanup plugins (System, Developer, Browsers, Applications) |
+| **ZeroClean.Cli** | C# .NET 8 Console | Headless command-line runner for automation, CI/CD, and scheduled maintenance |
+| **ZeroClean.UI** | C# WPF .NET 8-windows | Modern Fluent Dark desktop interface with Live In-Window notifications |
+| **ZeroClean.Tests** | xUnit .NET 8 | Unit test suite verifying protection guards, exclusions, and rules |
 
 ---
 
@@ -64,22 +64,22 @@
 
 ```bash
 # List all registered cleanup rules
-cleantool list
+zeroclean list
 
 # Scan system for reclaimable junk (Safe Dry-Run)
-cleantool scan
+zeroclean scan
 
 # Scan only developer caches
-cleantool scan --category Developer
+zeroclean scan --category Developer
 
 # Inspect drive storage allocations
-cleantool analyze
+zeroclean analyze
 
 # Inspect specific directory footprint
-cleantool analyze C:\Users
+zeroclean analyze C:\Users
 
 # Clean with explicit execution (Live mode)
-cleantool clean --execute
+zeroclean clean --execute
 ```
 
 ---
@@ -88,10 +88,10 @@ cleantool clean --execute
 
 ### Full (Self-Contained Single File)
 ```bash
-dotnet publish src/CleanTool.UI/CleanTool.UI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/full
+dotnet publish src/ZeroClean.UI/ZeroClean.UI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/full
 ```
 
 ### Lite (Framework-Dependent Single File)
 ```bash
-dotnet publish src/CleanTool.UI/CleanTool.UI.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish/lite
+dotnet publish src/ZeroClean.UI/ZeroClean.UI.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish/lite
 ```
