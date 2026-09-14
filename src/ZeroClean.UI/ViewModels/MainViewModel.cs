@@ -260,7 +260,7 @@ public class MainViewModel : ViewModelBase
             else if (param != null && int.TryParse(param.ToString(), out int parsed)) SelectedTabIndex = parsed;
         });
 
-        AnalyzeDriveTreeMapCommand = new RelayCommand<object>(async param => await ExecuteAnalyzeTreeMapAsync(param), () => !IsBusy && !IsAnalyzingTreeMap);
+        AnalyzeDriveTreeMapCommand = new RelayCommand<object>(async param => await ExecuteAnalyzeTreeMapAsync(param), _ => !IsBusy && !IsAnalyzingTreeMap);
         ToggleDiskViewModeCommand = new RelayCommand(() => IsTreeMapMode = !IsTreeMapMode);
 
         LoadDrives();
