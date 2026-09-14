@@ -64,6 +64,28 @@ public class MainViewModel : ViewModelBase
     public ObservableRangeCollection<LargeFileInfo> LargeFiles { get; } = new();
     public ObservableRangeCollection<LargeFileInfo> FilteredLargeFiles { get; } = new();
     public ObservableCollection<WslVdiskInfo> WslDisks { get; } = new();
+    public ObservableRangeCollection<SquarifiedTreeMapBlock> TreeMapBlocks { get; } = new();
+
+    private bool _isTreeMapMode;
+    public bool IsTreeMapMode
+    {
+        get => _isTreeMapMode;
+        set => SetProperty(ref _isTreeMapMode, value);
+    }
+
+    private string _treeMapTargetDirectory = "";
+    public string TreeMapTargetDirectory
+    {
+        get => _treeMapTargetDirectory;
+        set => SetProperty(ref _treeMapTargetDirectory, value);
+    }
+
+    private bool _isAnalyzingTreeMap;
+    public bool IsAnalyzingTreeMap
+    {
+        get => _isAnalyzingTreeMap;
+        set => SetProperty(ref _isAnalyzingTreeMap, value);
+    }
 
     private string _selectedRuleCategory = "All";
     public string SelectedRuleCategory
@@ -136,6 +158,7 @@ public class MainViewModel : ViewModelBase
     public RelayCommand RemoveBrokenEntryCommand { get; }
     public RelayCommand<AppLeftoverFolder> OpenLeftoverFolderCommand { get; }
     public RelayCommand<AppLeftoverFolder> PurgeSelectedLeftoverCommand { get; }
+    public RelayCommand PurgeSafeLeftoversCommand { get; }
     public RelayCommand ScanLargeFilesCommand { get; }
     public RelayCommand ScanWslDisksCommand { get; }
     public RelayCommand AnalyzeDismCommand { get; }
@@ -172,6 +195,8 @@ public class MainViewModel : ViewModelBase
     public RelayCommand RefreshRamCommand { get; }
     public RelayCommand QuickOptimizeCommand { get; }
     public RelayCommand<object> NavigateTabCommand { get; }
+    public RelayCommand<object> AnalyzeDriveTreeMapCommand { get; }
+    public RelayCommand ToggleDiskViewModeCommand { get; }
 
     public MainViewModel()
     {
@@ -214,6 +239,7 @@ public class MainViewModel : ViewModelBase
         RemoveBrokenEntryCommand = new RelayCommand(async () => await ExecuteRemoveBrokenEntryAsync(), () => SelectedApp != null && SelectedApp.IsBroken);
         OpenLeftoverFolderCommand = new RelayCommand<AppLeftoverFolder>(ExecuteOpenLeftoverFolder);
         PurgeSelectedLeftoverCommand = new RelayCommand<AppLeftoverFolder>(async folder => await ExecutePurgeLeftoverAsync(folder));
+        PurgeSafeLeftoversCommand = new RelayCommand(async () => await ExecutePurgeSafeLeftoversAsync(), () => !IsBusy && LeftoverFolders.Count > 0);
 
         ScanLargeFilesCommand = new RelayCommand(async () => await ExecuteScanLargeFilesAsync(), () => !IsBusy);
         ScanWslDisksCommand = new RelayCommand(async () => await ExecuteScanWslDisksAsync(), () => !IsBusy);
@@ -233,6 +259,9 @@ public class MainViewModel : ViewModelBase
             if (param is int i) SelectedTabIndex = i;
             else if (param != null && int.TryParse(param.ToString(), out int parsed)) SelectedTabIndex = parsed;
         });
+
+        AnalyzeDriveTreeMapCommand = new RelayCommand<object>(async param => await ExecuteAnalyzeTreeMapAsync(param), () => !IsBusy && !IsAnalyzingTreeMap);
+        ToggleDiskViewModeCommand = new RelayCommand(() => IsTreeMapMode = !IsTreeMapMode);
 
         LoadDrives();
         UpdateTotals();
@@ -445,6 +474,39 @@ public class MainViewModel : ViewModelBase
         foreach (var drive in _diskAnalyzer.GetDrives())
         {
             Drives.Add(new DiskDriveViewModel(drive));
+        }
+    }
+
+    public async Task ExecuteAnalyzeTreeMapAsync(object? param)
+    {
+        string? targetPath = null;
+        if (param is DiskDriveViewModel dvm) targetPath = dvm.DriveName;
+        else if (param is string s && !string.IsNullOrWhiteSpace(s)) targetPath = s;
+        else if (Drives.Count > 0) targetPath = Drives[0].DriveName;
+        else targetPath = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
+        if (string.IsNullOrWhiteSpace(targetPath)) return;
+
+        IsAnalyzingTreeMap = true;
+        IsTreeMapMode = true;
+        TreeMapTargetDirectory = targetPath;
+        StatusMessage = $"Analyzing directory tree for {targetPath}...";
+
+        try
+        {
+            var root = await _diskAnalyzer.AnalyzeDirectoryAsync(targetPath, maxDepth: 2);
+            var blocks = _diskAnalyzer.GenerateSquarifiedTreeMap(root, width: 880, height: 420, maxItems: 35);
+            TreeMapBlocks.ReplaceRange(blocks);
+            StatusMessage = $"Generated visual treemap: {blocks.Count} items mapped for {targetPath}.";
+            ShowInfoBar($"Visual TreeMap rendered: {blocks.Count} nodes mapped for '{targetPath}'.", "Success");
+        }
+        catch (Exception ex)
+        {
+            ShowInfoBar($"Failed to generate treemap: {ex.Message}", "Error");
+        }
+        finally
+        {
+            IsAnalyzingTreeMap = false;
         }
     }
 
@@ -971,6 +1033,44 @@ public class MainViewModel : ViewModelBase
         {
             ShowInfoBar($"Purge error: {ex.Message}", "Error");
         }
+    }
+
+    public async Task ExecutePurgeSafeLeftoversAsync()
+    {
+        var safeItems = LeftoverFolders.Where(f => f.IsSelected || f.Confidence == LeftoverConfidenceLevel.Safe).ToList();
+        if (safeItems.Count == 0)
+        {
+            ShowInfoBar("No safe leftover folders selected to purge.", "Info");
+            return;
+        }
+
+        var totalBytes = safeItems.Sum(f => f.EstimatedSizeBytes);
+        var result = MessageBox.Show(
+            $"⚠️ PERMANENT RESIDUAL BATCH DELETION:\n\nAre you sure you want to permanently delete {safeItems.Count} safe residual folder(s) ({FormatBytes(totalBytes)})?\n\nThis action cannot be undone!",
+            "Confirm Safe Residual Purge",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No);
+
+        if (result != MessageBoxResult.Yes) return;
+
+        int purgedCount = 0;
+        long reclaimedBytes = 0;
+        foreach (var item in safeItems)
+        {
+            bool ok = await Task.Run(() => _uninstallerService.PurgeLeftoverFolder(item, dryRun: false));
+            if (ok)
+            {
+                LeftoverFolders.Remove(item);
+                purgedCount++;
+                reclaimedBytes += item.EstimatedSizeBytes;
+            }
+        }
+
+        TotalLeftoverCount = LeftoverFolders.Count;
+        TotalLeftoverSize = LeftoverFolders.Sum(l => l.EstimatedSizeBytes);
+        TotalLeftoverSizeFormatted = FormatBytes(TotalLeftoverSize);
+        ShowInfoBar($"Purged {purgedCount} safe residual folders ({FormatBytes(reclaimedBytes)} reclaimed).", "Success");
     }
 
     private void ShowInfoBar(string message, string severity = "Info")

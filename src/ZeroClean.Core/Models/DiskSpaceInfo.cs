@@ -27,3 +27,21 @@ public record DirectoryAnalysisNode
     public int SubdirectoryCount { get; set; }
     public List<DirectoryAnalysisNode> Children { get; init; } = new();
 }
+
+/// <summary>
+/// 2D rectangular layout block computed by Squarified TreeMap algorithm (Bruls-Huizing-van Wijk).
+/// </summary>
+public record SquarifiedTreeMapBlock
+{
+    public required string Name { get; init; }
+    public required string FullPath { get; init; }
+    public long SizeBytes { get; init; }
+    public double X { get; set; }
+    public double Y { get; set; }
+    public double Width { get; set; }
+    public double Height { get; set; }
+    public double PercentOfTotal { get; set; }
+    public string ColorHex { get; set; } = "#3B82F6";
+    public string FormattedSize { get; set; } = "";
+}
+

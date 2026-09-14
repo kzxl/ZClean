@@ -44,6 +44,13 @@ public record InstalledAppInfo
     }
 }
 
+public enum LeftoverConfidenceLevel
+{
+    HighRisk = 0,     // Root vendor folder, system path, or shared directory (DO NOT delete)
+    Questionable = 1, // Generic match or unregistered folder that may belong to portable tools (Default unchecked)
+    Safe = 2          // Direct match to uninstalled app install location or verified Vendor\Product hierarchy (Default checked)
+}
+
 public record AppLeftoverFolder
 {
     public required string FolderPath { get; init; }
@@ -51,6 +58,9 @@ public record AppLeftoverFolder
     public long EstimatedSizeBytes { get; init; }
     public int FileCount { get; init; }
     public DateTime LastModified { get; init; }
+    public LeftoverConfidenceLevel Confidence { get; init; } = LeftoverConfidenceLevel.Questionable;
+    public string ConfidenceReason { get; init; } = "";
+    public bool IsSelected { get; set; } = false;
 }
 
 public record AppResidualAnalysis
@@ -196,13 +206,22 @@ public class AppUninstallerService
 
                 if (count > 0)
                 {
+                    bool isOlderThan30Days = (DateTime.Now - di.LastWriteTime).TotalDays > 30;
+                    var confidence = isOlderThan30Days ? LeftoverConfidenceLevel.Safe : LeftoverConfidenceLevel.Questionable;
+                    var reason = isOlderThan30Days
+                        ? $"Unregistered leftover idle for {(int)(DateTime.Now - di.LastWriteTime).TotalDays} days"
+                        : "Recently active folder with no registered uninstaller";
+
                     leftovers.Add(new AppLeftoverFolder
                     {
                         FolderPath = candidate.SubDir,
                         FolderName = candidate.DirName,
                         EstimatedSizeBytes = size,
                         FileCount = count,
-                        LastModified = di.LastWriteTime
+                        LastModified = di.LastWriteTime,
+                        Confidence = confidence,
+                        ConfidenceReason = reason,
+                        IsSelected = confidence == LeftoverConfidenceLevel.Safe
                     });
                 }
             }
@@ -298,13 +317,30 @@ public class AppUninstallerService
                             try { size += f.Length; count++; } catch { }
                         }
 
+                        var isExactInstallLoc = !string.IsNullOrWhiteSpace(app.InstallLocation) &&
+                                                targetDir.StartsWith(Path.GetFullPath(app.InstallLocation), StringComparison.OrdinalIgnoreCase);
+                        var isNestedVendorProd = token.Contains(Path.DirectorySeparatorChar) || token.Contains(Path.AltDirectorySeparatorChar);
+
+                        var confidence = (isExactInstallLoc || isNestedVendorProd)
+                            ? LeftoverConfidenceLevel.Safe
+                            : LeftoverConfidenceLevel.Questionable;
+
+                        var reason = isExactInstallLoc
+                            ? "Matches confirmed application installation directory"
+                            : isNestedVendorProd
+                                ? "Verified Vendor/Product residual hierarchy"
+                                : "Fuzzy name match (Review before purging)";
+
                         dirs.Add(new AppLeftoverFolder
                         {
                             FolderPath = targetDir,
                             FolderName = token,
                             EstimatedSizeBytes = size,
                             FileCount = count,
-                            LastModified = di.LastWriteTime
+                            LastModified = di.LastWriteTime,
+                            Confidence = confidence,
+                            ConfidenceReason = reason,
+                            IsSelected = confidence == LeftoverConfidenceLevel.Safe
                         });
                     }
                     catch { }

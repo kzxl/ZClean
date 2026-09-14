@@ -470,27 +470,78 @@
                                 <Border Background="#161827" CornerRadius="6" Padding="10"
                                         BorderBrush="{StaticResource BorderSubtleBrush}" BorderThickness="1">
                                     <StackPanel>
-                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,6">
-                                            <TextBlock Text="Detected Orphan AppData Leftovers" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="12"/>
-                                            <feed:ZeroBadge Count="{Binding LeftoverFolders.Count}" Status="Online" Margin="8,0,0,0"/>
-                                        </StackPanel>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                                <TextBlock Text="Detected Orphan AppData Leftovers" Foreground="{StaticResource TextPrimaryBrush}" FontWeight="SemiBold" FontSize="12"/>
+                                                <feed:ZeroBadge Count="{Binding LeftoverFolders.Count}" Status="Online" Margin="8,0,0,0"/>
+                                            </StackPanel>
+                                            <Button Grid.Column="1" Content="⚡ Purge Checked Safe"
+                                                    Command="{Binding PurgeSafeLeftoversCommand}"
+                                                    ToolTip="Safely removes verified residual directories with Safe confidence."
+                                                    Style="{StaticResource PrimaryActionButtonStyle}"
+                                                    Background="#1B5E20" BorderBrush="#00E676" FontSize="10.5" Padding="10,4"/>
+                                        </Grid>
                                         <ItemsControl ItemsSource="{Binding LeftoverFolders}">
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
                                                     <Border Margin="0,3,0,3" Padding="8,6" Background="#1D2034" CornerRadius="4">
                                                         <Grid>
                                                             <Grid.ColumnDefinitions>
+                                                                <ColumnDefinition Width="Auto"/>
                                                                 <ColumnDefinition Width="*"/>
                                                                 <ColumnDefinition Width="Auto"/>
                                                                 <ColumnDefinition Width="Auto"/>
                                                             </Grid.ColumnDefinitions>
-                                                            <StackPanel Grid.Column="0">
-                                                                <TextBlock Text="{Binding FolderName}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="11" FontWeight="SemiBold"/>
+                                                            <edit:CheckEdit Grid.Column="0" IsChecked="{Binding IsSelected, Mode=TwoWay}"
+                                                                           VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                                                <StackPanel Orientation="Horizontal">
+                                                                    <TextBlock Text="{Binding FolderName}" Foreground="{StaticResource TextPrimaryBrush}" FontSize="11" FontWeight="SemiBold"/>
+                                                                    <!-- Confidence Badge -->
+                                                                    <Border Margin="8,0,0,0" Padding="5,1" CornerRadius="3" VerticalAlignment="Center"
+                                                                            ToolTip="{Binding ConfidenceReason}">
+                                                                        <Border.Style>
+                                                                            <Style TargetType="Border">
+                                                                                <Setter Property="Background" Value="#33FFAA00"/>
+                                                                                <Style.Triggers>
+                                                                                    <DataTrigger Binding="{Binding Confidence}" Value="Safe">
+                                                                                        <Setter Property="Background" Value="#2200E676"/>
+                                                                                    </DataTrigger>
+                                                                                    <DataTrigger Binding="{Binding Confidence}" Value="HighRisk">
+                                                                                        <Setter Property="Background" Value="#33FF5252"/>
+                                                                                    </DataTrigger>
+                                                                                </Style.Triggers>
+                                                                            </Style>
+                                                                        </Border.Style>
+                                                                        <TextBlock FontSize="8.5" FontWeight="Bold">
+                                                                            <TextBlock.Style>
+                                                                                <Style TargetType="TextBlock">
+                                                                                    <Setter Property="Text" Value="QUESTIONABLE"/>
+                                                                                    <Setter Property="Foreground" Value="#FFAA00"/>
+                                                                                    <Style.Triggers>
+                                                                                        <DataTrigger Binding="{Binding Confidence}" Value="Safe">
+                                                                                            <Setter Property="Text" Value="✓ SAFE"/>
+                                                                                            <Setter Property="Foreground" Value="#00E676"/>
+                                                                                        </DataTrigger>
+                                                                                        <DataTrigger Binding="{Binding Confidence}" Value="HighRisk">
+                                                                                            <Setter Property="Text" Value="⚠ HIGH RISK"/>
+                                                                                            <Setter Property="Foreground" Value="#FF5252"/>
+                                                                                        </DataTrigger>
+                                                                                    </Style.Triggers>
+                                                                                </Style>
+                                                                            </TextBlock.Style>
+                                                                        </TextBlock>
+                                                                    </Border>
+                                                                </StackPanel>
                                                                 <TextBlock Text="{Binding FolderPath}" Foreground="{StaticResource TextMutedBrush}" FontSize="9.5" TextTrimming="CharacterEllipsis"/>
                                                             </StackPanel>
-                                                            <TextBlock Grid.Column="1" Text="{Binding EstimatedSizeBytes, Converter={StaticResource BytesConverter}}"
+                                                            <TextBlock Grid.Column="2" Text="{Binding EstimatedSizeBytes, Converter={StaticResource BytesConverter}}"
                                                                        Foreground="{StaticResource SuccessAccentBrush}" FontSize="10.5" FontWeight="SemiBold" VerticalAlignment="Center" Margin="8,0"/>
-                                                            <Button Grid.Column="2" Content="🗑️ Purge"
+                                                            <Button Grid.Column="3" Content="🗑️ Purge"
                                                                     Command="{Binding DataContext.PurgeSelectedLeftoverCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                                     CommandParameter="{Binding}"
                                                                     Style="{StaticResource FilterPillStyle}" Margin="0"/>

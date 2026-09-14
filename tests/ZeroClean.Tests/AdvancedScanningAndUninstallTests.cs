@@ -221,4 +221,46 @@ public class AdvancedScanningAndUninstallTests
                 Directory.Delete(sandbox, true);
         }
     }
+
+    [Fact]
+    public void AppUninstallerService_LeftoverConfidenceLevel_ScoresAccurately()
+    {
+        var service = new AppUninstallerService();
+        var sandbox = Path.Combine(Path.GetTempPath(), "ZeroClean_ConfidenceTest_" + Guid.NewGuid().ToString("N"));
+        var appInstallDir = Path.Combine(sandbox, "CustomApp");
+        var vendorSubDir = Path.Combine(sandbox, "AcmeCorp", "WidgetPro");
+        var genericDir = Path.Combine(sandbox, "StandaloneWidget");
+
+        Directory.CreateDirectory(appInstallDir);
+        Directory.CreateDirectory(vendorSubDir);
+        Directory.CreateDirectory(genericDir);
+
+        File.WriteAllText(Path.Combine(appInstallDir, "app.bin"), "bin");
+        File.WriteAllText(Path.Combine(vendorSubDir, "widget.dat"), "dat");
+        File.WriteAllText(Path.Combine(genericDir, "cache.tmp"), "tmp");
+
+        try
+        {
+            var app = new InstalledAppInfo
+            {
+                Id = "CustomAppId",
+                DisplayName = "CustomApp",
+                InstallLocation = appInstallDir
+            };
+
+            var analysis = service.ScanAppResiduals(app, customRoots: new[] { sandbox });
+            var appFolder = analysis.DirectoriesFound.FirstOrDefault(d => string.Equals(d.FolderPath, appInstallDir, StringComparison.OrdinalIgnoreCase));
+            
+            Assert.NotNull(appFolder);
+            Assert.Equal(LeftoverConfidenceLevel.Safe, appFolder.Confidence);
+            Assert.True(appFolder.IsSelected);
+            Assert.Contains("Matches confirmed application installation directory", appFolder.ConfidenceReason);
+        }
+        finally
+        {
+            if (Directory.Exists(sandbox))
+                Directory.Delete(sandbox, true);
+        }
+    }
 }
+
