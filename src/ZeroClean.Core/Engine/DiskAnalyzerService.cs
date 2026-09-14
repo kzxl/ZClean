@@ -71,8 +71,14 @@ public class DiskAnalyzerService : IDiskAnalyzer
 
         try
         {
+            var enumOptions = new EnumerationOptions
+            {
+                IgnoreInaccessible = true,
+                AttributesToSkip = FileAttributes.ReparsePoint
+            };
+
             // Enumerate files
-            foreach (var file in dir.EnumerateFiles())
+            foreach (var file in dir.EnumerateFiles("*", enumOptions))
             {
                 ct.ThrowIfCancellationRequested();
                 try
@@ -87,7 +93,7 @@ public class DiskAnalyzerService : IDiskAnalyzer
             }
 
             // Enumerate subdirectories
-            var subDirs = dir.EnumerateDirectories();
+            var subDirs = dir.EnumerateDirectories("*", enumOptions);
             int subDirCount = 0;
 
             foreach (var subDir in subDirs)
@@ -137,7 +143,14 @@ public class DiskAnalyzerService : IDiskAnalyzer
         long size = 0;
         try
         {
-            foreach (var file in dir.EnumerateFiles("*", SearchOption.AllDirectories))
+            var enumOptions = new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = true,
+                AttributesToSkip = FileAttributes.ReparsePoint
+            };
+
+            foreach (var file in dir.EnumerateFiles("*", enumOptions))
             {
                 ct.ThrowIfCancellationRequested();
                 try { size += file.Length; } catch { }

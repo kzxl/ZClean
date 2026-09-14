@@ -75,9 +75,22 @@ public class AppUninstallerService
 {
     private static readonly HashSet<string> SystemFolderExclusions = new(StringComparer.OrdinalIgnoreCase)
     {
+        // Core Windows & OS Assets
         "Microsoft", "Windows", "Packages", "Temp", "Programs", "System",
         "assembly", "Common Files", "Internet Explorer", "Windows NT",
-        "Windows Defender", "Windows Security", "ZeroUI"
+        "Windows Defender", "Windows Security", "ZeroUI", "D3DSCache", 
+        "CrashDumps", "LocalLow", "VirtualStore", "Downloaded Installations",
+
+        // Multi-app Vendor Umbrella Folders (NEVER purge the root vendor folder!)
+        "Google", "Adobe", "Apple", "Mozilla", "NVIDIA", "Intel", "AMD",
+        "Valve", "Steam", "Electronic Arts", "Epic Games", "Ubisoft", 
+        "Oracle", "JetBrains", "Spotify", "Discord", "Dropbox", "Amazon",
+        "Cisco", "VMware",
+
+        // Developer Runtimes & Tooling (Portable/CLI)
+        "npm", "npm-cache", "pip", "yarn", "Git", "GitHub", "Docker",
+        "dotnet", "NuGet", "pnpm", "rustup", "cargo", "go",
+        ".ssh", ".gnupg", ".aws", ".azure", ".config", ".local"
     };
 
     public IReadOnlyList<InstalledAppInfo> GetInstalledApplications()
@@ -211,15 +224,39 @@ public class AppUninstallerService
         var tokens = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
         if (!string.IsNullOrWhiteSpace(app.DisplayName))
         {
-            tokens.Add(app.DisplayName.Trim());
-            var parts = app.DisplayName.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
-            if (parts.Length > 0 && parts[0].Length > 2)
-                tokens.Add(parts[0]);
+            var cleanName = app.DisplayName.Trim();
+            if (!SystemFolderExclusions.Contains(cleanName))
+            {
+                tokens.Add(cleanName);
+            }
+
+            var parts = cleanName.Split(new[] { ' ', '-', '_' }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length > 1)
+            {
+                string vendor = parts[0];
+                string product = string.Join(" ", parts.Skip(1));
+                if (SystemFolderExclusions.Contains(vendor) && product.Length > 2)
+                {
+                    tokens.Add(Path.Combine(vendor, product));
+                    tokens.Add(product);
+                }
+            }
         }
 
-        // 1. Scan Registry for leftover keys
+        if (!string.IsNullOrWhiteSpace(app.InstallLocation) && Directory.Exists(app.InstallLocation))
+        {
+            var installFolderName = Path.GetFileName(app.InstallLocation.TrimEnd('\\', '/'));
+            if (!string.IsNullOrWhiteSpace(installFolderName) && !SystemFolderExclusions.Contains(installFolderName))
+            {
+                tokens.Add(installFolderName);
+            }
+        }
+
+        // 1. Scan Registry for leftover keys (never target root vendor keys)
         foreach (var token in tokens)
         {
+            if (SystemFolderExclusions.Contains(token)) continue;
+
             CheckRegistryKeyExists(RegistryHive.CurrentUser, RegistryView.Default, $@"Software\{token}", regKeys);
             CheckRegistryKeyExists(RegistryHive.LocalMachine, RegistryView.Registry64, $@"Software\{token}", regKeys);
             CheckRegistryKeyExists(RegistryHive.LocalMachine, RegistryView.Registry32, $@"Software\{token}", regKeys);
@@ -233,12 +270,21 @@ public class AppUninstallerService
             Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData)
         };
 
+        var enumOptions = new EnumerationOptions
+        {
+            RecurseSubdirectories = true,
+            IgnoreInaccessible = true,
+            AttributesToSkip = FileAttributes.ReparsePoint
+        };
+
         foreach (var root in searchRoots)
         {
             if (string.IsNullOrWhiteSpace(root) || !Directory.Exists(root)) continue;
 
             foreach (var token in tokens)
             {
+                if (SystemFolderExclusions.Contains(token)) continue;
+
                 var targetDir = Path.Combine(root, token);
                 if (Directory.Exists(targetDir))
                 {
@@ -247,7 +293,7 @@ public class AppUninstallerService
                     try
                     {
                         var di = new DirectoryInfo(targetDir);
-                        foreach (var f in di.EnumerateFiles("*", SearchOption.AllDirectories).Take(500))
+                        foreach (var f in di.EnumerateFiles("*", enumOptions).Take(500))
                         {
                             try { size += f.Length; count++; } catch { }
                         }

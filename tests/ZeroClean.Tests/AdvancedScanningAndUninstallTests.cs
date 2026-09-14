@@ -188,4 +188,37 @@ public class AdvancedScanningAndUninstallTests
         var leftovers = service.DetectLeftoverFolders(existingApps: apps);
         Assert.NotNull(leftovers);
     }
+
+    [Fact]
+    public void AppUninstallerService_ScanAppResiduals_NeverTargetsRootVendorDirectories()
+    {
+        var service = new AppUninstallerService();
+        var sandbox = Path.Combine(Path.GetTempPath(), "ZeroClean_VendorSafety_" + Guid.NewGuid().ToString("N"));
+        var googleDir = Path.Combine(sandbox, "Google");
+        var chromeDir = Path.Combine(googleDir, "Chrome");
+        Directory.CreateDirectory(chromeDir);
+        File.WriteAllText(Path.Combine(chromeDir, "User Data.txt"), "Important Profile Data");
+
+        try
+        {
+            var app = new InstalledAppInfo
+            {
+                Id = "GoogleEarth",
+                DisplayName = "Google Earth Pro",
+                InstallLocation = null
+            };
+
+            var analysis = service.ScanAppResiduals(app, customRoots: new[] { sandbox });
+
+            // Ensure the root Google directory is NEVER flagged as residual folder
+            Assert.DoesNotContain(analysis.DirectoriesFound, d => string.Equals(d.FolderPath, googleDir, StringComparison.OrdinalIgnoreCase));
+            // Ensure Software\Google is never flagged in registry keys
+            Assert.DoesNotContain(analysis.RegistryKeysFound, k => k.EndsWith(@"\Software\Google", StringComparison.OrdinalIgnoreCase));
+        }
+        finally
+        {
+            if (Directory.Exists(sandbox))
+                Directory.Delete(sandbox, true);
+        }
+    }
 }

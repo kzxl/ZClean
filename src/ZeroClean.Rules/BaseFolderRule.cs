@@ -173,8 +173,13 @@ public abstract class BaseFolderRule : ICleanerRule
     {
         try
         {
-            var searchOption = Recursive ? SearchOption.AllDirectories : SearchOption.TopDirectoryOnly;
-            var files = Directory.EnumerateFiles(dirPath, SearchPattern, searchOption);
+            var enumOptions = new EnumerationOptions
+            {
+                RecurseSubdirectories = Recursive,
+                IgnoreInaccessible = true,
+                AttributesToSkip = FileAttributes.ReparsePoint
+            };
+            var files = Directory.EnumerateFiles(dirPath, SearchPattern, enumOptions);
 
             foreach (var file in files)
             {
@@ -223,18 +228,27 @@ public abstract class BaseFolderRule : ICleanerRule
         if (!Directory.Exists(startLocation))
             return;
 
-        foreach (var directory in Directory.GetDirectories(startLocation))
+        try
         {
-            CleanupEmptySubdirectories(directory);
-            try
+            var enumOptions = new EnumerationOptions
             {
-                if (Directory.GetFiles(directory).Length == 0 &&
-                    Directory.GetDirectories(directory).Length == 0)
+                IgnoreInaccessible = true,
+                AttributesToSkip = FileAttributes.ReparsePoint
+            };
+
+            foreach (var directory in Directory.EnumerateDirectories(startLocation, "*", enumOptions))
+            {
+                CleanupEmptySubdirectories(directory);
+                try
                 {
-                    Directory.Delete(directory, false);
+                    if (!Directory.EnumerateFileSystemEntries(directory, "*", enumOptions).Any())
+                    {
+                        Directory.Delete(directory, false);
+                    }
                 }
+                catch { }
             }
-            catch { }
         }
+        catch { }
     }
 }

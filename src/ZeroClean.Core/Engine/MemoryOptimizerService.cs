@@ -147,6 +147,30 @@ public class MemoryOptimizerService
 
     /// <summary>
     /// Trims memory working set of target processes and optionally purges Windows standby cache.
+    [DllImport("user32.dll")]
+    private static extern IntPtr GetForegroundWindow();
+
+    [DllImport("user32.dll", SetLastError = true)]
+    private static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint lpdwProcessId);
+
+    private static uint GetForegroundProcessId()
+    {
+        try
+        {
+            IntPtr hwnd = GetForegroundWindow();
+            if (hwnd != IntPtr.Zero)
+            {
+                GetWindowThreadProcessId(hwnd, out uint pid);
+                return pid;
+            }
+        }
+        catch { }
+        return 0;
+    }
+
+    /// <summary>
+    /// Trims memory working set of target processes and optionally purges Windows standby cache.
+    /// Excludes active foreground applications and ZeroClean itself to prevent UI lag.
     /// </summary>
     public Task<MemoryOptimizationResult> OptimizeWorkingSetsAsync(bool purgeStandby = true, CancellationToken cancellationToken = default)
     {
@@ -164,6 +188,8 @@ public class MemoryOptimizerService
             long initialTotal = 0;
             long finalTotal = 0;
             int count = 0;
+            uint foregroundPid = GetForegroundProcessId();
+            int currentPid = Environment.ProcessId;
 
             foreach (var proc in processes)
             {
@@ -171,8 +197,11 @@ public class MemoryOptimizerService
 
                 try
                 {
-                    // Skip system process (Id 0, 4)
-                    if (proc.Id <= 4) continue;
+                    // Skip system processes (Id 0, 4), self, and active foreground window process
+                    if (proc.Id <= 4 || proc.Id == currentPid || proc.Id == foregroundPid) continue;
+
+                    // Only trim processes with noticeable memory footprint (> 15 MB) to avoid churn
+                    if (proc.WorkingSet64 < 15 * 1024 * 1024) continue;
 
                     initialTotal += proc.WorkingSet64;
 
@@ -232,7 +261,8 @@ public class MemoryOptimizerService
                     Attributes = SE_PRIVILEGE_ENABLED
                 };
 
-                return AdjustTokenPrivileges(hToken, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero);
+                bool success = AdjustTokenPrivileges(hToken, false, ref tp, 0, IntPtr.Zero, IntPtr.Zero);
+                return success && Marshal.GetLastWin32Error() != 1300; // ERROR_NOT_ALL_ASSIGNED = 1300
             }
             finally
             {
