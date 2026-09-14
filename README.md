@@ -1,11 +1,19 @@
 # 🌌 ZeroClean — Modern System Optimizer & Cleaner
 
 <p align="center">
+  <a href="https://github.com/kzxl/ZeroClean"><img src="https://img.shields.io/badge/Type-Desktop%20Application%20%26%20CLI-007ACC?style=flat-square&logo=windows" alt="Type: Desktop App" /></a>
+  <a href="https://github.com/kzxl/ZeroClean"><img src="https://img.shields.io/badge/Ecosystem-Zero%20Universe-8A2BE2?style=flat-square" alt="Ecosystem: Zero Universe" /></a>
+  <a href="https://github.com/kzxl/ZeroClean"><img src="https://img.shields.io/badge/Platform-Windows%20x64-brightgreen?style=flat-square" alt="Platform: Windows x64" /></a>
+  <a href="https://github.com/kzxl/ZeroClean"><img src="https://img.shields.io/badge/Distribution-Standalone%20Single--File-2ea44f?style=flat-square" alt="Distribution: Standalone Single-File" /></a>
+</p>
+
+<p align="center">
   <strong>High-performance, modular system & developer workspace cleaner</strong><br/>
   C# WPF Dark UI + CLI Engine • Universe Plugin Architecture v4.0 • Zero-Risk Dry-Run
 </p>
 
 ---
+
 
 ## 📖 Overview
 
