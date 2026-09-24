@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using ZClean.Core.Contracts;
 using ZClean.Core.Engine;
 using ZClean.Core.Models;
@@ -82,7 +82,7 @@ public static class Program
 
     private static void PrintUsage()
     {
-        Console.WriteLine("Usage: zeroclean <command> [options]\n");
+        Console.WriteLine("Usage: zclean <command> [options]\n");
         Console.WriteLine("Core Cleaner Commands:");
         Console.WriteLine("  list                     List all available cleaner rules and categories");
         Console.WriteLine("  scan [options]           Scan system for junk files without deleting");

@@ -1,4 +1,4 @@
-﻿<#
+<#
     publish.ps1 — Publish script for ZClean (Dual Mode: Full & Lite)
     Adheres to AgentOption .NET Publish Release standard & ZeroUniverse rules.
 #>
@@ -38,7 +38,7 @@ if ($Mode -eq 'Full' -or $Mode -eq 'All') {
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:EnableCompressionInSingleFile=true `
             -o $outCliFull
-        Write-Host "  ✔ CLI Full generated at: $outCliFull\zeroclean.exe" -ForegroundColor Green
+        Write-Host "  ✔ CLI Full generated at: $outCliFull\zclean.exe" -ForegroundColor Green
     }
 }
 
@@ -58,7 +58,7 @@ if ($Mode -eq 'Lite' -or $Mode -eq 'All') {
         dotnet publish $CliProj -c $Configuration -r $Runtime --self-contained false `
             -p:PublishSingleFile=true `
             -o $outCliLite
-        Write-Host "  ✔ CLI Lite generated at: $outCliLite\zeroclean.exe" -ForegroundColor Green
+        Write-Host "  ✔ CLI Lite generated at: $outCliLite\zclean.exe" -ForegroundColor Green
     }
 }
 

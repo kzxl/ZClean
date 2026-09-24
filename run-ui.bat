@@ -1,2 +1,2 @@
 @echo off
-start "" "%~dp0publish\ui-lite\ZeroClean.exe"
+start "" "%~dp0publish\ui-lite\ZClean.exe"
