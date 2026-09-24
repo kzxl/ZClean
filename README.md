@@ -1,4 +1,4 @@
-﻿# 🌌 ZClean — Modern System Optimizer & Cleaner
+# 🌌 ZClean — Modern System Optimizer & Cleaner
 
 <p align="center">
   <a href="https://github.com/kzxl/ZClean"><img src="https://img.shields.io/badge/Type-Desktop%20Application%20%26%20CLI-007ACC?style=flat-square&logo=windows" alt="Type: Desktop App" /></a>
@@ -72,22 +72,22 @@
 
 ```bash
 # List all registered cleanup rules
-zeroclean list
+zclean list
 
 # Scan system for reclaimable junk (Safe Dry-Run)
-zeroclean scan
+zclean scan
 
 # Scan only developer caches
-zeroclean scan --category Developer
+zclean scan --category Developer
 
 # Inspect drive storage allocations
-zeroclean analyze
+zclean analyze
 
 # Inspect specific directory footprint
-zeroclean analyze C:\Users
+zclean analyze C:\Users
 
 # Clean with explicit execution (Live mode)
-zeroclean clean --execute
+zclean clean --execute
 ```
 
 ---
