@@ -1,0 +1,24 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <RootNamespace>ZClean.UI</RootNamespace>
+    <AssemblyName>ZClean</AssemblyName>
+    <UseWPF>true</UseWPF>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="app.ico" />
+    <Resource Include="app.png" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ZClean.Core\ZClean.Core.csproj" />
+    <ProjectReference Include="..\ZClean.Rules\ZClean.Rules.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ZeroUI.Wpf" Version="1.5.0" />
+  </ItemGroup>
+</Project>

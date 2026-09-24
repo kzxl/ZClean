@@ -1,0 +1,15 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>ZClean.Cli</RootNamespace>
+    <AssemblyName>zeroclean</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\ZClean.Core\ZClean.Core.csproj" />
+    <ProjectReference Include="..\ZClean.Rules\ZClean.Rules.csproj" />
+  </ItemGroup>
+</Project>

@@ -1,10 +1,10 @@
-# 🌌 ZeroClean — Modern System Optimizer & Cleaner
+﻿# 🌌 ZClean — Modern System Optimizer & Cleaner
 
 <p align="center">
-  <a href="https://github.com/kzxl/ZeroClean"><img src="https://img.shields.io/badge/Type-Desktop%20Application%20%26%20CLI-007ACC?style=flat-square&logo=windows" alt="Type: Desktop App" /></a>
-  <a href="https://github.com/kzxl/ZeroClean"><img src="https://img.shields.io/badge/Ecosystem-Zero%20Universe-8A2BE2?style=flat-square" alt="Ecosystem: Zero Universe" /></a>
-  <a href="https://github.com/kzxl/ZeroClean"><img src="https://img.shields.io/badge/Platform-Windows%20x64-brightgreen?style=flat-square" alt="Platform: Windows x64" /></a>
-  <a href="https://github.com/kzxl/ZeroClean"><img src="https://img.shields.io/badge/Distribution-Standalone%20Single--File-2ea44f?style=flat-square" alt="Distribution: Standalone Single-File" /></a>
+  <a href="https://github.com/kzxl/ZClean"><img src="https://img.shields.io/badge/Type-Desktop%20Application%20%26%20CLI-007ACC?style=flat-square&logo=windows" alt="Type: Desktop App" /></a>
+  <a href="https://github.com/kzxl/ZClean"><img src="https://img.shields.io/badge/Ecosystem-Zero%20Universe-8A2BE2?style=flat-square" alt="Ecosystem: Zero Universe" /></a>
+  <a href="https://github.com/kzxl/ZClean"><img src="https://img.shields.io/badge/Platform-Windows%20x64-brightgreen?style=flat-square" alt="Platform: Windows x64" /></a>
+  <a href="https://github.com/kzxl/ZClean"><img src="https://img.shields.io/badge/Distribution-Standalone%20Single--File-2ea44f?style=flat-square" alt="Distribution: Standalone Single-File" /></a>
 </p>
 
 <p align="center">
@@ -17,15 +17,15 @@
 
 ## 📖 Overview
 
-**ZeroClean** is a modern disk maintenance and system cleanup utility engineered for developer workstations and power users. Part of the sovereign **ZeroUniverse** application suite, it decouples cleanup rules into autonomous, self-registering plugins while providing a premium Fluent Dark UI and headless CLI capabilities.
+**ZClean** is a modern disk maintenance and system cleanup utility engineered for developer workstations and power users. Part of the sovereign **ZeroUniverse** application suite, it decouples cleanup rules into autonomous, self-registering plugins while providing a premium Fluent Dark UI and headless CLI capabilities.
 
 | Component | Tech Stack | Role |
 | :--- | :--- | :--- |
-| **ZeroClean.Core** | C# .NET 8 (netstandard / net8.0) | Scan engine, rule registry, safety barrier, file lock probing, disk analyzer |
-| **ZeroClean.Rules** | C# .NET 8 | Autonomous cleanup plugins (System, Developer, Browsers, Applications) |
-| **ZeroClean.Cli** | C# .NET 8 Console | Headless command-line runner for automation, CI/CD, and scheduled maintenance |
-| **ZeroClean.UI** | C# WPF .NET 8-windows | Modern Fluent Dark desktop interface with Live In-Window notifications |
-| **ZeroClean.Tests** | xUnit .NET 8 | Unit test suite verifying protection guards, exclusions, and rules |
+| **ZClean.Core** | C# .NET 8 (netstandard / net8.0) | Scan engine, rule registry, safety barrier, file lock probing, disk analyzer |
+| **ZClean.Rules** | C# .NET 8 | Autonomous cleanup plugins (System, Developer, Browsers, Applications) |
+| **ZClean.Cli** | C# .NET 8 Console | Headless command-line runner for automation, CI/CD, and scheduled maintenance |
+| **ZClean.UI** | C# WPF .NET 8-windows | Modern Fluent Dark desktop interface with Live In-Window notifications |
+| **ZClean.Tests** | xUnit .NET 8 | Unit test suite verifying protection guards, exclusions, and rules |
 
 ---
 
@@ -96,10 +96,10 @@ zeroclean clean --execute
 
 ### Full (Self-Contained Single File)
 ```bash
-dotnet publish src/ZeroClean.UI/ZeroClean.UI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/full
+dotnet publish src/ZClean.UI/ZClean.UI.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -o publish/full
 ```
 
 ### Lite (Framework-Dependent Single File)
 ```bash
-dotnet publish src/ZeroClean.UI/ZeroClean.UI.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish/lite
+dotnet publish src/ZClean.UI/ZClean.UI.csproj -c Release -r win-x64 --self-contained false -p:PublishSingleFile=true -o publish/lite
 ```

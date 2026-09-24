@@ -1,5 +1,5 @@
-<#
-    publish.ps1 — Publish script for ZeroClean (Dual Mode: Full & Lite)
+﻿<#
+    publish.ps1 — Publish script for ZClean (Dual Mode: Full & Lite)
     Adheres to AgentOption .NET Publish Release standard & ZeroUniverse rules.
 #>
 [CmdletBinding()]
@@ -14,12 +14,12 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $Root = $PSScriptRoot
-$UiProj = Join-Path $Root "src\ZeroClean.UI\ZeroClean.UI.csproj"
-$CliProj = Join-Path $Root "src\ZeroClean.Cli\ZeroClean.Cli.csproj"
+$UiProj = Join-Path $Root "src\ZClean.UI\ZClean.UI.csproj"
+$CliProj = Join-Path $Root "src\ZClean.Cli\ZClean.Cli.csproj"
 $Dist = Join-Path $Root "publish"
 
 if ($Mode -eq 'Full' -or $Mode -eq 'All') {
-    Write-Host ">>> Publishing ZeroClean FULL (Self-Contained Single File)..." -ForegroundColor Cyan
+    Write-Host ">>> Publishing ZClean FULL (Self-Contained Single File)..." -ForegroundColor Cyan
     
     if ($Target -eq 'UI' -or $Target -eq 'All') {
         $outUiFull = Join-Path $Dist "ui-full"
@@ -28,7 +28,7 @@ if ($Mode -eq 'Full' -or $Mode -eq 'All') {
             -p:IncludeNativeLibrariesForSelfExtract=true `
             -p:EnableCompressionInSingleFile=true `
             -o $outUiFull
-        Write-Host "  ✔ UI Full generated at: $outUiFull\ZeroClean.exe" -ForegroundColor Green
+        Write-Host "  ✔ UI Full generated at: $outUiFull\ZClean.exe" -ForegroundColor Green
     }
     
     if ($Target -eq 'CLI' -or $Target -eq 'All') {
@@ -43,14 +43,14 @@ if ($Mode -eq 'Full' -or $Mode -eq 'All') {
 }
 
 if ($Mode -eq 'Lite' -or $Mode -eq 'All') {
-    Write-Host ">>> Publishing ZeroClean LITE (Framework-Dependent Single File)..." -ForegroundColor Cyan
+    Write-Host ">>> Publishing ZClean LITE (Framework-Dependent Single File)..." -ForegroundColor Cyan
     
     if ($Target -eq 'UI' -or $Target -eq 'All') {
         $outUiLite = Join-Path $Dist "ui-lite"
         dotnet publish $UiProj -c $Configuration -r $Runtime --self-contained false `
             -p:PublishSingleFile=true `
             -o $outUiLite
-        Write-Host "  ✔ UI Lite generated at: $outUiLite\ZeroClean.exe" -ForegroundColor Green
+        Write-Host "  ✔ UI Lite generated at: $outUiLite\ZClean.exe" -ForegroundColor Green
     }
     
     if ($Target -eq 'CLI' -or $Target -eq 'All') {
@@ -62,4 +62,4 @@ if ($Mode -eq 'Lite' -or $Mode -eq 'All') {
     }
 }
 
-Write-Host ">>> ZeroClean publish completed successfully!" -ForegroundColor Green
+Write-Host ">>> ZClean publish completed successfully!" -ForegroundColor Green
